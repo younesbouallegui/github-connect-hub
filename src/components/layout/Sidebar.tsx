@@ -9,6 +9,7 @@ import {
   Settings,
   ChevronLeft,
   ShieldCheck,
+  X,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -33,29 +34,44 @@ const items: NavItem[] = [
 interface SidebarProps {
   active: string;
   onSelect: (id: string) => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
-export const Sidebar = ({ active, onSelect }: SidebarProps) => {
+export const Sidebar = ({ active, onSelect, mobileOpen, onMobileClose }: SidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
 
-  return (
-    <aside
-      className={cn(
-        "relative z-20 flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl transition-[width] duration-500 ease-out",
-        collapsed ? "w-[76px]" : "w-[260px]",
-      )}
-    >
+  const handleSelect = (id: string) => {
+    onSelect(id);
+    onMobileClose();
+  };
+
+  const content = (isMobile: boolean) => (
+    <>
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
         <div className="relative">
-          <img src={logo} alt="Nexus AIOps logo" className="h-9 w-9 rounded-md object-contain" />
-          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-success ring-2 ring-sidebar shadow-[0_0_8px_hsl(var(--success))]" />
+          <img src={logo} alt="Poulina ChatOps logo" className="h-9 w-9 rounded-md object-contain" />
+          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-success ring-2 ring-sidebar" />
         </div>
-        {!collapsed && (
-          <div className="min-w-0 animate-fade-in">
-            <p className="truncate text-sm font-semibold tracking-tight text-sidebar-accent-foreground">Nexus AIOps</p>
-            <p className="truncate text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Control Center</p>
+        {(!collapsed || isMobile) && (
+          <div className="min-w-0 flex-1 animate-fade-in">
+            <p className="truncate text-sm font-semibold tracking-tight text-sidebar-accent-foreground">
+              Poulina ChatOps
+            </p>
+            <p className="truncate text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              AI Operations
+            </p>
           </div>
+        )}
+        {isMobile && (
+          <button
+            onClick={onMobileClose}
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            aria-label="Close menu"
+          >
+            <X className="h-4 w-4" />
+          </button>
         )}
       </div>
 
@@ -67,26 +83,26 @@ export const Sidebar = ({ active, onSelect }: SidebarProps) => {
           return (
             <button
               key={item.id}
-              onClick={() => onSelect(item.id)}
+              onClick={() => handleSelect(item.id)}
               className={cn(
-                "group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300",
-                "hover:bg-sidebar-accent/70 hover:translate-x-0.5",
+                "group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                "hover:bg-sidebar-accent",
                 isActive
-                  ? "bg-gradient-to-r from-primary/15 to-transparent text-sidebar-accent-foreground"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground",
               )}
-              title={collapsed ? item.label : undefined}
+              title={collapsed && !isMobile ? item.label : undefined}
             >
               {isActive && (
-                <span className="absolute inset-y-1 left-0 w-[3px] rounded-r-full bg-gradient-to-b from-primary-glow to-primary shadow-[0_0_12px_hsl(var(--primary-glow))]" />
+                <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-primary" />
               )}
               <Icon
                 className={cn(
                   "h-[18px] w-[18px] shrink-0 transition-colors",
-                  isActive ? "text-primary-glow" : "text-sidebar-foreground group-hover:text-sidebar-accent-foreground",
+                  isActive ? "text-primary" : "text-sidebar-foreground group-hover:text-sidebar-accent-foreground",
                 )}
               />
-              {!collapsed && (
+              {(!collapsed || isMobile) && (
                 <>
                   <span className="flex-1 truncate text-left">{item.label}</span>
                   {item.badge !== undefined && (
@@ -111,31 +127,61 @@ export const Sidebar = ({ active, onSelect }: SidebarProps) => {
         })}
       </nav>
 
-      {/* Footer: trust indicator */}
+      {/* Footer */}
       <div className="border-t border-sidebar-border p-3">
         <div
           className={cn(
             "flex items-center gap-3 rounded-lg border border-success/20 bg-success/5 p-3",
-            collapsed && "justify-center p-2",
+            collapsed && !isMobile && "justify-center p-2",
           )}
         >
           <ShieldCheck className="h-5 w-5 shrink-0 text-success" />
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <div className="min-w-0 animate-fade-in">
-              <p className="truncate text-xs font-semibold text-foreground">JWT Verified</p>
-              <p className="truncate text-[10px] text-muted-foreground">RBAC: Site Reliability</p>
+              <p className="truncate text-xs font-semibold text-foreground">Session Secured</p>
+              <p className="truncate text-[10px] text-muted-foreground">SSO · audit trail on</p>
             </div>
           )}
         </div>
 
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className="mt-3 flex w-full items-center justify-center rounded-lg border border-sidebar-border py-1.5 text-muted-foreground transition-all hover:border-primary/40 hover:text-primary-glow"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          <ChevronLeft className={cn("h-4 w-4 transition-transform duration-500", collapsed && "rotate-180")} />
-        </button>
+        {!isMobile && (
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="mt-3 flex w-full items-center justify-center rounded-lg border border-sidebar-border py-1.5 text-muted-foreground transition-all hover:border-primary/40 hover:text-primary active:scale-95"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <ChevronLeft className={cn("h-4 w-4 transition-transform duration-300", collapsed && "rotate-180")} />
+          </button>
+        )}
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside
+        className={cn(
+          "relative z-20 hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-out md:flex",
+          collapsed ? "w-[76px]" : "w-[260px]",
+        )}
+      >
+        {content(false)}
+      </aside>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm animate-fade-in"
+            onClick={onMobileClose}
+            aria-hidden
+          />
+          <aside className="absolute inset-y-0 left-0 flex w-[280px] flex-col border-r border-sidebar-border bg-sidebar shadow-elevated animate-slide-in-right [animation-duration:300ms]">
+            {content(true)}
+          </aside>
+        </div>
+      )}
+    </>
   );
 };
