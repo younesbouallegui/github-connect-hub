@@ -1,19 +1,58 @@
-import { Bell, Search, Command, ChevronDown, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Bell, Search, Command, ChevronDown, Sparkles, Sun, Moon, Menu, LogOut, User as UserIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
-export const TopBar = () => {
+interface TopBarProps {
+  onMenuClick: () => void;
+}
+
+export const TopBar = ({ onMenuClick }: TopBarProps) => {
+  const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
   const [time, setTime] = useState(new Date());
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const i = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(i);
   }, []);
 
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const handleLogout = () => {
+    setMenuOpen(false);
+    logout();
+    toast({ title: "Signed out", description: "You have been logged out securely." });
+  };
+
+  const handleNotifications = () => {
+    toast({ title: "Notifications", description: "You have 7 unread alerts." });
+  };
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b border-border/60 bg-background/60 px-4 backdrop-blur-xl md:px-6">
-      {/* Breadcrumb / status */}
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background/85 px-3 backdrop-blur-xl md:gap-4 md:px-6">
+      {/* Mobile menu */}
+      <button
+        onClick={onMenuClick}
+        className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground active:scale-95 md:hidden"
+        aria-label="Open menu"
+      >
+        <Menu className="h-4 w-4" />
+      </button>
+
+      {/* Status */}
       <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
-        <span className="flex h-2 w-2 items-center justify-center">
+        <span className="relative flex h-2 w-2 items-center justify-center">
           <span className="absolute h-2 w-2 animate-ping rounded-full bg-success opacity-60" />
           <span className="relative h-2 w-2 rounded-full bg-success" />
         </span>
@@ -25,22 +64,36 @@ export const TopBar = () => {
       {/* Search */}
       <div className="ml-auto flex max-w-xl flex-1 items-center">
         <div className="group relative w-full">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary-glow" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
           <input
-            placeholder="Ask AI: 'Why is api-gateway-3 lagging?'"
-            className="h-10 w-full rounded-lg border border-border/60 bg-background-elevated/50 pl-9 pr-20 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-all duration-300 focus:border-primary/50 focus:bg-background-elevated focus:shadow-[0_0_0_4px_hsl(var(--primary)/0.08)]"
+            placeholder="Search anything…"
+            className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-16 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-all duration-300 focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
           />
           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-            <Sparkles className="h-3.5 w-3.5 text-primary-glow" />
-            <kbd className="hidden items-center gap-1 rounded border border-border/60 bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:flex">
+            <Sparkles className="hidden h-3.5 w-3.5 text-primary sm:block" />
+            <kbd className="hidden items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:flex">
               <Command className="h-3 w-3" />K
             </kbd>
           </div>
         </div>
       </div>
 
+      {/* Theme toggle */}
+      <button
+        onClick={toggleTheme}
+        className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground active:scale-95"
+        aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+        title={theme === "light" ? "Dark mode" : "Light mode"}
+      >
+        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </button>
+
       {/* Notifications */}
-      <button className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-background-elevated/50 text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground">
+      <button
+        onClick={handleNotifications}
+        className="relative hidden h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground active:scale-95 sm:flex"
+        aria-label="Notifications"
+      >
         <Bell className="h-4 w-4" />
         <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground ring-2 ring-background">
           7
@@ -48,16 +101,47 @@ export const TopBar = () => {
       </button>
 
       {/* User */}
-      <button className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-background-elevated/50 p-1.5 pr-3 transition-all hover:border-primary/40">
-        <div className="relative h-7 w-7 overflow-hidden rounded-md bg-gradient-primary text-[11px] font-semibold text-primary-foreground">
-          <span className="flex h-full w-full items-center justify-center">AK</span>
-        </div>
-        <div className="hidden text-left md:block">
-          <p className="text-xs font-semibold leading-tight text-foreground">Adrien K.</p>
-          <p className="text-[10px] leading-tight text-muted-foreground">SRE · Admin</p>
-        </div>
-        <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground md:block" />
-      </button>
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => setMenuOpen((o) => !o)}
+          className="flex items-center gap-2.5 rounded-lg border border-border bg-card p-1.5 pr-2 transition-all hover:border-primary/40 active:scale-[0.98] sm:pr-3"
+        >
+          <div className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-md bg-gradient-primary text-[11px] font-semibold text-primary-foreground">
+            {user?.initials ?? "U"}
+          </div>
+          <div className="hidden text-left md:block">
+            <p className="text-xs font-semibold leading-tight text-foreground">{user?.name ?? "User"}</p>
+            <p className="text-[10px] leading-tight text-muted-foreground">{user?.role ?? ""}</p>
+          </div>
+          <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground md:block" />
+        </button>
+
+        {menuOpen && (
+          <div className="absolute right-0 top-12 w-56 origin-top-right rounded-lg border border-border bg-popover p-1.5 shadow-elevated animate-fade-in">
+            <div className="border-b border-border px-3 py-2">
+              <p className="truncate text-xs font-semibold text-foreground">{user?.name}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{user?.email}</p>
+            </div>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                toast({ title: "Profile", description: "Profile settings coming soon." });
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-foreground transition-colors hover:bg-muted"
+            >
+              <UserIcon className="h-3.5 w-3.5" />
+              Profile
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign out
+            </button>
+          </div>
+        )}
+      </div>
     </header>
   );
 };
