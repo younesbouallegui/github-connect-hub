@@ -41,7 +41,7 @@ export const Sidebar = ({ active, onSelect }: SidebarProps) => {
   return (
     <aside
       className={cn(
-        "relative z-20 flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl transition-[width] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        "relative z-20 flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl transition-[width] duration-500 ease-out",
         collapsed ? "w-[76px]" : "w-[260px]",
       )}
     >
