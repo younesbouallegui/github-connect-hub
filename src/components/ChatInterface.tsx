@@ -84,8 +84,8 @@ export const ChatInterface = ({ autoMessage, autoMessageKey }: ChatInterfaceProp
     ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
   }, [input]);
 
-  const send = () => {
-    const text = input.trim();
+  const send = (override?: string) => {
+    const text = (override ?? input).trim();
     if (!text || sending) return;
     const id = Date.now();
     const aiId = id + 1;
@@ -94,7 +94,7 @@ export const ChatInterface = ({ autoMessage, autoMessageKey }: ChatInterfaceProp
       { id, role: "user", content: text },
       { id: aiId, role: "ai", thinking: true },
     ]);
-    setInput("");
+    if (override === undefined) setInput("");
     setSending(true);
 
     setTimeout(() => {
@@ -107,6 +107,20 @@ export const ChatInterface = ({ autoMessage, autoMessageKey }: ChatInterfaceProp
       setSending(false);
     }, 1600);
   };
+
+  // Auto-send a pre-filled message when arriving from a deep link (e.g. /s/:eventId)
+  useEffect(() => {
+    if (!autoMessage) return;
+    const key = autoMessageKey ?? autoMessage;
+    if (autoSentRef.current === key) return;
+    autoSentRef.current = key;
+    // Reset any prior conversation so the deep-link context is the entry point
+    setMessages([]);
+    // Defer slightly so the empty-state unmounts cleanly before the message renders
+    const t = setTimeout(() => send(autoMessage), 50);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoMessage, autoMessageKey]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
