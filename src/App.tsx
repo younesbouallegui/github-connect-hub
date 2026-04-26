@@ -16,6 +16,7 @@ import Infrastructure from "./pages/Infrastructure";
 import SLA from "./pages/SLA";
 import Settings from "./pages/Settings";
 import AIInsights from "./pages/AIInsights";
+import IncidentChat from "./pages/IncidentChat";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/incidents" element={<Incidents />} />
                   <Route path="/ai" element={<AIInsights />} />
+                  <Route path="/s/:eventId" element={<IncidentChat />} />
                   <Route path="/infrastructure" element={<Infrastructure />} />
                   <Route path="/sla" element={<SLA />} />
                   <Route
