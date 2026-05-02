@@ -49,48 +49,74 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
     ? getIncidentsForUser(user.assignedServers).filter((i) => i.status !== "resolved").length
     : 0;
 
-  const items: NavItem[] = [
+  const sections: NavSection[] = [
     {
-      to: "/dashboard",
-      labelKey: "nav.dashboard",
-      icon: LayoutDashboard,
-      allow: ["admin", "operator", "viewer"],
+      labelKey: "nav.section.operate",
+      items: [
+        {
+          to: "/dashboard",
+          labelKey: "nav.dashboard",
+          icon: LayoutDashboard,
+          allow: ["admin", "operator", "viewer"],
+        },
+        {
+          to: "/alerts",
+          labelKey: "nav.alerts",
+          icon: BellRing,
+          allow: ["admin", "operator", "viewer"],
+          badge: () => (openIncidentsCount > 0 ? openIncidentsCount : undefined),
+        },
+        {
+          to: "/incidents",
+          labelKey: "nav.incidents",
+          icon: AlertTriangle,
+          allow: ["admin", "operator", "viewer"],
+        },
+        {
+          to: "/ai",
+          labelKey: "nav.ai",
+          icon: Sparkles,
+          allow: ["admin", "operator", "viewer"],
+        },
+      ],
     },
     {
-      to: "/incidents",
-      labelKey: "nav.incidents",
-      icon: AlertTriangle,
-      allow: ["admin", "operator", "viewer"],
-      badge: () => (openIncidentsCount > 0 ? openIncidentsCount : undefined),
+      labelKey: "nav.section.observe",
+      items: [
+        {
+          to: "/infrastructure",
+          labelKey: "nav.infra",
+          icon: Server,
+          allow: ["admin", "operator", "viewer"],
+        },
+        {
+          to: "/sla",
+          labelKey: "nav.sla",
+          icon: GaugeCircle,
+          allow: ["admin", "operator", "viewer"],
+        },
+      ],
     },
     {
-      to: "/ai",
-      labelKey: "nav.ai",
-      icon: Sparkles,
-      allow: ["admin", "operator", "viewer"],
-    },
-    {
-      to: "/infrastructure",
-      labelKey: "nav.infra",
-      icon: Server,
-      allow: ["admin", "operator", "viewer"],
-    },
-    {
-      to: "/sla",
-      labelKey: "nav.sla",
-      icon: GaugeCircle,
-      allow: ["admin", "operator", "viewer"],
-    },
-    {
-      to: "/settings",
-      labelKey: "nav.settings",
-      icon: Settings,
-      allow: ["admin", "operator", "viewer"],
-      adminBadge: false,
+      labelKey: "nav.section.govern",
+      items: [
+        {
+          to: "/settings",
+          labelKey: "nav.settings",
+          icon: Settings,
+          allow: ["admin", "operator", "viewer"],
+          adminBadge: false,
+        },
+      ],
     },
   ];
 
-  const visibleItems = items.filter((it) => !user || it.allow.includes(user.role));
+  const visibleSections = sections
+    .map((s) => ({
+      ...s,
+      items: s.items.filter((it) => !user || it.allow.includes(user.role)),
+    }))
+    .filter((s) => s.items.length > 0);
 
   const handleSelect = (to: string) => {
     navigate(to);
