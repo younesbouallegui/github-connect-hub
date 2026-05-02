@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   X,
   Lock,
+  BellRing,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,11 @@ interface NavItem {
   badge?: () => string | number | undefined;
   allow: Role[];
   adminBadge?: boolean;
+}
+
+interface NavSection {
+  labelKey: string;
+  items: NavItem[];
 }
 
 interface SidebarProps {
