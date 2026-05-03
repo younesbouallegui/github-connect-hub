@@ -12,6 +12,8 @@ import {
   X,
   Lock,
   BellRing,
+  Crown,
+  LayoutGrid,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -54,6 +56,12 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
       labelKey: "nav.section.operate",
       items: [
         {
+          to: "/executive",
+          labelKey: "nav.executive",
+          icon: Crown,
+          allow: ["admin", "operator", "viewer"],
+        },
+        {
           to: "/dashboard",
           labelKey: "nav.dashboard",
           icon: LayoutDashboard,
@@ -83,6 +91,12 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
     {
       labelKey: "nav.section.observe",
       items: [
+        {
+          to: "/dashboards",
+          labelKey: "nav.dashboards",
+          icon: LayoutGrid,
+          allow: ["admin", "operator", "viewer"],
+        },
         {
           to: "/infrastructure",
           labelKey: "nav.infra",
