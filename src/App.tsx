@@ -18,6 +18,8 @@ import SLA from "./pages/SLA";
 import Settings from "./pages/Settings";
 import AIInsights from "./pages/AIInsights";
 import IncidentChat from "./pages/IncidentChat";
+import Executive from "./pages/Executive";
+import Dashboards from "./pages/Dashboards";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +44,8 @@ const App = () => (
                 >
                   <Route path="/" element={<Navigate to="/ai" replace />} />
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/executive" element={<Executive />} />
+                  <Route path="/dashboards" element={<Dashboards />} />
                   <Route path="/incidents" element={<Incidents />} />
                   <Route path="/alerts" element={<Alerts />} />
                   <Route path="/ai" element={<AIInsights />} />
