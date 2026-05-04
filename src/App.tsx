@@ -17,6 +17,8 @@ import SLA from "./pages/SLA";
 import Settings from "./pages/Settings";
 import AIInsights from "./pages/AIInsights";
 import IncidentChat from "./pages/IncidentChat";
+import Executive from "./pages/Executive";
+import Alerts from "./pages/Alerts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,7 +41,9 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 >
-                  <Route path="/" element={<Navigate to="/ai" replace />} />
+                  <Route path="/" element={<Navigate to="/executive" replace />} />
+                  <Route path="/executive" element={<Executive />} />
+                  <Route path="/alerts" element={<Alerts />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/incidents" element={<Incidents />} />
                   <Route path="/ai" element={<AIInsights />} />
