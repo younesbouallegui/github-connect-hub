@@ -19,8 +19,6 @@ import AIInsights from "./pages/AIInsights";
 import IncidentChat from "./pages/IncidentChat";
 import Executive from "./pages/Executive";
 import Alerts from "./pages/Alerts";
-import Executive from "./pages/Executive";
-import Alerts from "./pages/Alerts";
 import Assets from "./pages/cmdb/Assets";
 import AssetDetail from "./pages/cmdb/AssetDetail";
 import Services from "./pages/cmdb/Services";
