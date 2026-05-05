@@ -1,104 +1,147 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import type { Session, User as SbUser } from "@supabase/supabase-js";
 
-export type Role = "admin" | "operator" | "viewer";
+export type Role = "admin" | "operator" | "viewer" | "auditor";
 
 export interface User {
+  id: string;
   email: string;
   name: string;
-  role: Role;
   initials: string;
-  /** IDs of servers the user is allowed to access */
+  role: Role;
+  roles: Role[];
+  /** kept for backward compatibility with legacy components/screens */
   assignedServers: string[];
 }
 
 interface AuthContextValue {
   user: User | null;
+  session: Session | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string, remember: boolean) => Promise<void>;
-  logout: () => void;
   loading: boolean;
+  login: (email: string, password: string, remember: boolean) => Promise<void>;
+  signup: (email: string, password: string, fullName: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  logout: () => Promise<void>;
   hasRole: (...roles: Role[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-const STORAGE_KEY = "poulina-auth";
 
-/** Demo user catalog — in real app this would come from the backend. */
-const KNOWN_USERS: Record<string, Omit<User, "email" | "name" | "initials">> = {
-  "admin@poulina.com": {
-    role: "admin",
-    assignedServers: ["srv-001", "srv-002", "srv-003", "srv-004", "srv-005", "srv-006"],
-  },
-  "operator@poulina.com": {
-    role: "operator",
-    assignedServers: ["srv-001", "srv-002", "srv-003"],
-  },
-  "viewer@poulina.com": {
-    role: "viewer",
-    assignedServers: ["srv-001", "srv-002"],
-  },
-};
+const ROLE_PRIORITY: Role[] = ["admin", "operator", "auditor", "viewer"];
+const pickPrimary = (roles: Role[]): Role =>
+  ROLE_PRIORITY.find((r) => roles.includes(r)) ?? "viewer";
 
-const inferRole = (email: string): Role => {
-  const local = email.toLowerCase();
-  if (local.includes("admin")) return "admin";
-  if (local.includes("view")) return "viewer";
-  return "operator";
+const buildBaseUser = (sb: SbUser): Omit<User, "role" | "roles"> => {
+  const email = sb.email ?? "";
+  const meta = (sb.user_metadata ?? {}) as Record<string, unknown>;
+  const fullName =
+    (meta.full_name as string) ||
+    (meta.name as string) ||
+    email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) ||
+    "User";
+  const initials = fullName
+    .split(" ")
+    .map((s) => s[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  return { id: sb.id, email, name: fullName, initials, assignedServers: [] };
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(STORAGE_KEY);
-      if (raw) setUser(JSON.parse(raw));
-    } catch {
-      // ignore
-    }
-    setLoading(false);
+  const loadRoles = useCallback(async (sb: SbUser): Promise<User> => {
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", sb.id);
+    const roles = !error && data ? (data.map((r) => r.role as Role)) : ["viewer" as Role];
+    const safeRoles = roles.length ? roles : ["viewer" as Role];
+    return { ...buildBaseUser(sb), roles: safeRoles, role: pickPrimary(safeRoles) };
   }, []);
 
-  const login = async (email: string, _password: string, remember: boolean) => {
-    await new Promise((r) => setTimeout(r, 800));
-    const known = KNOWN_USERS[email.toLowerCase()];
-    const role = known?.role ?? inferRole(email);
-    const assignedServers =
-      known?.assignedServers ??
-      (role === "admin"
-        ? ["srv-001", "srv-002", "srv-003", "srv-004", "srv-005", "srv-006"]
-        : role === "operator"
-          ? ["srv-001", "srv-002", "srv-003"]
-          : ["srv-001"]);
+  useEffect(() => {
+    // CRITICAL: subscribe BEFORE getSession
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      if (newSession?.user) {
+        // Defer Supabase calls to avoid deadlocking the auth callback
+        setTimeout(() => {
+          loadRoles(newSession.user).then(setUser).catch(() => setUser(null));
+        }, 0);
+      } else {
+        setUser(null);
+      }
+    });
 
-    const name =
-      email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "User";
-    const initials = name
-      .split(" ")
-      .map((s) => s[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
+      if (s?.user) {
+        loadRoles(s.user).then(setUser).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
 
-    const u: User = { email, name, role, initials, assignedServers };
-    setUser(u);
-    const store = remember ? localStorage : sessionStorage;
-    store.setItem(STORAGE_KEY, JSON.stringify(u));
-    (remember ? sessionStorage : localStorage).removeItem(STORAGE_KEY);
+    return () => sub.subscription.unsubscribe();
+  }, [loadRoles]);
+
+  const login = async (email: string, password: string, _remember: boolean) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
-    sessionStorage.removeItem(STORAGE_KEY);
+  const signup = async (email: string, password: string, fullName: string) => {
+    const redirectUrl = `${window.location.origin}/`;
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: redirectUrl, data: { full_name: fullName } },
+    });
+    if (error) throw error;
   };
 
-  const hasRole = (...roles: Role[]) => !!user && roles.includes(user.role);
+  const loginWithGoogle = async () => {
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) throw result.error;
+  };
+
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) throw error;
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const hasRole = (...roles: Role[]) => !!user && roles.some((r) => user.roles.includes(r));
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, login, logout, loading, hasRole }}
+      value={{
+        user,
+        session,
+        isAuthenticated: !!session,
+        loading,
+        login,
+        signup,
+        loginWithGoogle,
+        resetPassword,
+        logout,
+        hasRole,
+      }}
     >
       {children}
     </AuthContext.Provider>
