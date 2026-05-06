@@ -228,6 +228,457 @@ export type Database = {
         }
         Relationships: []
       }
+      monitoring_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          asset_id: string | null
+          assigned_to: string | null
+          created_at: string
+          department_id: string | null
+          description: string | null
+          external_id: string
+          host_id: string | null
+          id: string
+          provider_id: string
+          raw: Json | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          root_cause: string | null
+          service_id: string | null
+          severity: Database["public"]["Enums"]["alert_severity"]
+          status: Database["public"]["Enums"]["alert_lifecycle"]
+          title: string
+          triggered_at: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          asset_id?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          external_id: string
+          host_id?: string | null
+          id?: string
+          provider_id: string
+          raw?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          service_id?: string | null
+          severity?: Database["public"]["Enums"]["alert_severity"]
+          status?: Database["public"]["Enums"]["alert_lifecycle"]
+          title: string
+          triggered_at?: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          asset_id?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          external_id?: string
+          host_id?: string | null
+          id?: string
+          provider_id?: string
+          raw?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          service_id?: string | null
+          severity?: Database["public"]["Enums"]["alert_severity"]
+          status?: Database["public"]["Enums"]["alert_lifecycle"]
+          title?: string
+          triggered_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitoring_alerts_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monitoring_alerts_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monitoring_alerts_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_hosts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monitoring_alerts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monitoring_alerts_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "business_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monitoring_events: {
+        Row: {
+          alert_id: string | null
+          event_type: string | null
+          external_id: string
+          host_id: string | null
+          id: string
+          message: string | null
+          occurred_at: string
+          provider_id: string
+          raw: Json | null
+          severity: Database["public"]["Enums"]["alert_severity"] | null
+        }
+        Insert: {
+          alert_id?: string | null
+          event_type?: string | null
+          external_id: string
+          host_id?: string | null
+          id?: string
+          message?: string | null
+          occurred_at?: string
+          provider_id: string
+          raw?: Json | null
+          severity?: Database["public"]["Enums"]["alert_severity"] | null
+        }
+        Update: {
+          alert_id?: string | null
+          event_type?: string | null
+          external_id?: string
+          host_id?: string | null
+          id?: string
+          message?: string | null
+          occurred_at?: string
+          provider_id?: string
+          raw?: Json | null
+          severity?: Database["public"]["Enums"]["alert_severity"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitoring_events_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monitoring_events_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_hosts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monitoring_events_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monitoring_host_groups: {
+        Row: {
+          created_at: string
+          external_id: string
+          id: string
+          name: string
+          provider_id: string
+        }
+        Insert: {
+          created_at?: string
+          external_id: string
+          id?: string
+          name: string
+          provider_id: string
+        }
+        Update: {
+          created_at?: string
+          external_id?: string
+          id?: string
+          name?: string
+          provider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitoring_host_groups_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monitoring_hosts: {
+        Row: {
+          asset_id: string | null
+          available: boolean | null
+          created_at: string
+          external_id: string
+          hostname: string | null
+          id: string
+          ip_address: string | null
+          last_seen: string | null
+          name: string
+          provider_id: string
+          raw: Json | null
+          status: string | null
+          tags: Json
+          updated_at: string
+        }
+        Insert: {
+          asset_id?: string | null
+          available?: boolean | null
+          created_at?: string
+          external_id: string
+          hostname?: string | null
+          id?: string
+          ip_address?: string | null
+          last_seen?: string | null
+          name: string
+          provider_id: string
+          raw?: Json | null
+          status?: string | null
+          tags?: Json
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string | null
+          available?: boolean | null
+          created_at?: string
+          external_id?: string
+          hostname?: string | null
+          id?: string
+          ip_address?: string | null
+          last_seen?: string | null
+          name?: string
+          provider_id?: string
+          raw?: Json | null
+          status?: string | null
+          tags?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitoring_hosts_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monitoring_hosts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monitoring_maps: {
+        Row: {
+          created_at: string
+          external_id: string
+          id: string
+          layout: Json | null
+          name: string
+          provider_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          external_id: string
+          id?: string
+          layout?: Json | null
+          name: string
+          provider_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          external_id?: string
+          id?: string
+          layout?: Json | null
+          name?: string
+          provider_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitoring_maps_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monitoring_metrics: {
+        Row: {
+          external_id: string | null
+          host_id: string | null
+          id: string
+          key: string
+          provider_id: string
+          raw: Json | null
+          recorded_at: string
+          unit: string | null
+          value: number | null
+        }
+        Insert: {
+          external_id?: string | null
+          host_id?: string | null
+          id?: string
+          key: string
+          provider_id: string
+          raw?: Json | null
+          recorded_at?: string
+          unit?: string | null
+          value?: number | null
+        }
+        Update: {
+          external_id?: string | null
+          host_id?: string | null
+          id?: string
+          key?: string
+          provider_id?: string
+          raw?: Json | null
+          recorded_at?: string
+          unit?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitoring_metrics_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_hosts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monitoring_metrics_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monitoring_providers: {
+        Row: {
+          base_url: string | null
+          config: Json
+          created_at: string
+          enabled: boolean
+          health_score: number
+          id: string
+          kind: Database["public"]["Enums"]["provider_kind"]
+          last_error: string | null
+          last_sync_at: string | null
+          name: string
+          secret_ref: string | null
+          status: Database["public"]["Enums"]["provider_status"]
+          sync_interval_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          base_url?: string | null
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          health_score?: number
+          id?: string
+          kind: Database["public"]["Enums"]["provider_kind"]
+          last_error?: string | null
+          last_sync_at?: string | null
+          name: string
+          secret_ref?: string | null
+          status?: Database["public"]["Enums"]["provider_status"]
+          sync_interval_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          base_url?: string | null
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          health_score?: number
+          id?: string
+          kind?: Database["public"]["Enums"]["provider_kind"]
+          last_error?: string | null
+          last_sync_at?: string | null
+          name?: string
+          secret_ref?: string | null
+          status?: Database["public"]["Enums"]["provider_status"]
+          sync_interval_minutes?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      monitoring_sync_logs: {
+        Row: {
+          details: Json | null
+          duration_ms: number | null
+          finished_at: string | null
+          id: string
+          message: string | null
+          provider_id: string
+          records_ingested: number
+          result: Database["public"]["Enums"]["sync_result"]
+          started_at: string
+        }
+        Insert: {
+          details?: Json | null
+          duration_ms?: number | null
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          provider_id: string
+          records_ingested?: number
+          result?: Database["public"]["Enums"]["sync_result"]
+          started_at?: string
+        }
+        Update: {
+          details?: Json | null
+          duration_ms?: number | null
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          provider_id?: string
+          records_ingested?: number
+          result?: Database["public"]["Enums"]["sync_result"]
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitoring_sync_logs_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -265,6 +716,44 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_health: {
+        Row: {
+          health_score: number
+          id: string
+          latency_ms: number | null
+          message: string | null
+          provider_id: string
+          recorded_at: string
+          status: Database["public"]["Enums"]["provider_status"]
+        }
+        Insert: {
+          health_score: number
+          id?: string
+          latency_ms?: number | null
+          message?: string | null
+          provider_id: string
+          recorded_at?: string
+          status: Database["public"]["Enums"]["provider_status"]
+        }
+        Update: {
+          health_score?: number
+          id?: string
+          latency_ms?: number | null
+          message?: string | null
+          provider_id?: string
+          recorded_at?: string
+          status?: Database["public"]["Enums"]["provider_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_health_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_providers"
             referencedColumns: ["id"]
           },
         ]
@@ -337,7 +826,21 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "operator" | "viewer" | "auditor"
+      alert_lifecycle:
+        | "open"
+        | "acknowledged"
+        | "assigned"
+        | "escalated"
+        | "resolved"
+        | "closed"
+      alert_severity:
+        | "info"
+        | "warning"
+        | "average"
+        | "high"
+        | "disaster"
+        | "not_classified"
+      app_role: "admin" | "operator" | "viewer" | "auditor" | "super_admin"
       asset_status: "active" | "maintenance" | "decommissioned" | "planned"
       asset_type:
         | "server"
@@ -356,6 +859,23 @@ export type Database = {
         | "connects_to"
         | "replicates_to"
       environment: "production" | "staging" | "development" | "dr"
+      provider_kind:
+        | "zabbix"
+        | "grafana"
+        | "prometheus"
+        | "datadog"
+        | "jira"
+        | "slack"
+        | "teams"
+        | "huawei_nms"
+        | "custom"
+      provider_status:
+        | "connected"
+        | "disconnected"
+        | "degraded"
+        | "error"
+        | "unconfigured"
+      sync_result: "ok" | "partial" | "error" | "running"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -483,7 +1003,23 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "operator", "viewer", "auditor"],
+      alert_lifecycle: [
+        "open",
+        "acknowledged",
+        "assigned",
+        "escalated",
+        "resolved",
+        "closed",
+      ],
+      alert_severity: [
+        "info",
+        "warning",
+        "average",
+        "high",
+        "disaster",
+        "not_classified",
+      ],
+      app_role: ["admin", "operator", "viewer", "auditor", "super_admin"],
       asset_status: ["active", "maintenance", "decommissioned", "planned"],
       asset_type: [
         "server",
@@ -504,6 +1040,25 @@ export const Constants = {
         "replicates_to",
       ],
       environment: ["production", "staging", "development", "dr"],
+      provider_kind: [
+        "zabbix",
+        "grafana",
+        "prometheus",
+        "datadog",
+        "jira",
+        "slack",
+        "teams",
+        "huawei_nms",
+        "custom",
+      ],
+      provider_status: [
+        "connected",
+        "disconnected",
+        "degraded",
+        "error",
+        "unconfigured",
+      ],
+      sync_result: ["ok", "partial", "error", "running"],
     },
   },
 } as const
