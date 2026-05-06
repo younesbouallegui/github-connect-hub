@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import type { Session, User as SbUser } from "@supabase/supabase-js";
 
-export type Role = "admin" | "operator" | "viewer" | "auditor";
+export type Role = "super_admin" | "admin" | "operator" | "viewer" | "auditor";
 
 export interface User {
   id: string;
@@ -31,7 +31,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const ROLE_PRIORITY: Role[] = ["admin", "operator", "auditor", "viewer"];
+const ROLE_PRIORITY: Role[] = ["super_admin", "admin", "operator", "auditor", "viewer"];
 const pickPrimary = (roles: Role[]): Role =>
   ROLE_PRIORITY.find((r) => roles.includes(r)) ?? "viewer";
 

@@ -18,6 +18,7 @@ import {
   Users as UsersIcon,
   Building2,
   ScrollText,
+  Plug,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -59,9 +60,9 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
     {
       titleKey: "nav.section.overview",
       items: [
-        { to: "/executive", labelKey: "nav.executive", icon: LineChart, allow: ["admin", "operator", "viewer", "auditor"] },
-        { to: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, allow: ["admin", "operator", "viewer", "auditor"] },
-        { to: "/ai", labelKey: "nav.ai", icon: Sparkles, allow: ["admin", "operator", "viewer", "auditor"] },
+        { to: "/executive", labelKey: "nav.executive", icon: LineChart, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/ai", labelKey: "nav.ai", icon: Sparkles, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
       ],
     },
     {
@@ -71,33 +72,34 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
           to: "/alerts",
           labelKey: "nav.alerts",
           icon: Bell,
-          allow: ["admin", "operator", "viewer", "auditor"],
+          allow: ["super_admin", "admin", "operator", "viewer", "auditor"],
           badge: () => (openAlertsCount > 0 ? openAlertsCount : undefined),
         },
-        { to: "/incidents", labelKey: "nav.incidents", icon: AlertTriangle, allow: ["admin", "operator", "viewer", "auditor"] },
-        { to: "/infrastructure", labelKey: "nav.infra", icon: Server, allow: ["admin", "operator", "viewer", "auditor"] },
-        { to: "/sla", labelKey: "nav.sla", icon: GaugeCircle, allow: ["admin", "operator", "viewer", "auditor"] },
+        { to: "/incidents", labelKey: "nav.incidents", icon: AlertTriangle, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/infrastructure", labelKey: "nav.infra", icon: Server, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/sla", labelKey: "nav.sla", icon: GaugeCircle, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
       ],
     },
     {
       titleKey: "nav.section.cmdb",
       items: [
-        { to: "/cmdb/assets", labelKey: "nav.cmdb.assets", icon: Boxes, allow: ["admin", "operator", "viewer", "auditor"] },
-        { to: "/cmdb/services", labelKey: "nav.cmdb.services", icon: Layers, allow: ["admin", "operator", "viewer", "auditor"] },
+        { to: "/cmdb/assets", labelKey: "nav.cmdb.assets", icon: Boxes, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/cmdb/services", labelKey: "nav.cmdb.services", icon: Layers, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
       ],
     },
     {
       titleKey: "nav.section.governance",
       items: [
-        { to: "/governance/users", labelKey: "nav.gov.users", icon: UsersIcon, allow: ["admin"] },
-        { to: "/governance/departments", labelKey: "nav.gov.dept", icon: Building2, allow: ["admin"] },
-        { to: "/governance/audit", labelKey: "nav.gov.audit", icon: ScrollText, allow: ["admin", "auditor"] },
+        { to: "/governance/users", labelKey: "nav.gov.users", icon: UsersIcon, allow: ["super_admin", "admin"] },
+        { to: "/governance/departments", labelKey: "nav.gov.dept", icon: Building2, allow: ["super_admin", "admin"] },
+        { to: "/governance/audit", labelKey: "nav.gov.audit", icon: ScrollText, allow: ["super_admin", "admin", "auditor"] },
       ],
     },
     {
       titleKey: "nav.section.platform",
       items: [
-        { to: "/settings", labelKey: "nav.settings", icon: Settings, allow: ["admin", "operator", "viewer", "auditor"] },
+        { to: "/integrations", labelKey: "nav.integrations", icon: Plug, allow: ["super_admin", "admin", "auditor"] },
+        { to: "/settings", labelKey: "nav.settings", icon: Settings, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
       ],
     },
   ];
