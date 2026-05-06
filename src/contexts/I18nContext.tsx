@@ -269,6 +269,7 @@ const fr: Dict = {
   "nav.infra": "Infrastructure",
   "nav.sla": "SLA & Rapports",
   "nav.settings": "Paramètres",
+  "nav.integrations": "Intégrations",
   "nav.adminOnly": "Admin uniquement",
   "nav.section.overview": "Vue d'ensemble",
   "nav.section.operations": "Opérations",
