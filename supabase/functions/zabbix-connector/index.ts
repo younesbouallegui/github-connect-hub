@@ -34,13 +34,16 @@ async function zabbixRpc({ url, token, method, params }: ZabbixRpcOpts) {
     params: params ?? {},
     id: 1,
   };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json-rpc",
+  };
+  // apiinfo.version must be called WITHOUT any authorization
+  if (method !== "apiinfo.version") {
+    headers.Authorization = `Bearer ${token}`;
+  }
   const res = await fetch(endpoint, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json-rpc",
-      // Zabbix 6.4+ supports bearer auth too
-      Authorization: `Bearer ${token}`,
-    },
+    headers,
     body: JSON.stringify(body),
   });
   if (!res.ok) {
