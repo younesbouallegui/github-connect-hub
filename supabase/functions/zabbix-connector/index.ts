@@ -26,12 +26,13 @@ interface ZabbixRpcOpts {
 
 async function zabbixRpc({ url, token, method, params }: ZabbixRpcOpts) {
   const endpoint = url.replace(/\/+$/, "") + "/api_jsonrpc.php";
-  const body = {
+  // Zabbix 7.2+ rejects "auth" in body — use Bearer header only.
+  // apiinfo.version must NOT include auth at all.
+  const body: Record<string, unknown> = {
     jsonrpc: "2.0",
     method,
     params: params ?? {},
     id: 1,
-    auth: token, // older Zabbix
   };
   const res = await fetch(endpoint, {
     method: "POST",
@@ -42,7 +43,10 @@ async function zabbixRpc({ url, token, method, params }: ZabbixRpcOpts) {
     },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Zabbix HTTP ${res.status}`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Zabbix HTTP ${res.status} at ${endpoint}${text ? `: ${text.slice(0, 200)}` : ""}`);
+  }
   const json = await res.json();
   if (json.error) throw new Error(`Zabbix RPC: ${json.error.data || json.error.message}`);
   return json.result;
