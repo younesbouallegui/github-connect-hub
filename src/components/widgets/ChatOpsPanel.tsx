@@ -127,7 +127,7 @@ export const ChatOpsPanel = () => {
             <span className="absolute -right-0.5 -bottom-0.5 h-2 w-2 rounded-full bg-success ring-2 ring-background shadow-[0_0_6px_hsl(var(--success))]" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Nexus AI · ChatOps</h3>
+            <h3 className="text-sm font-semibold text-foreground">Nexus AI · Hub</h3>
             <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Terminal className="h-3 w-3" />
               <span className="font-mono">prod · eu-west-1 · context: 12 services</span>

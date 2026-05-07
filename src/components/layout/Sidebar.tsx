@@ -19,6 +19,8 @@ import {
   Building2,
   ScrollText,
   Plug,
+  Grid3x3,
+  TerminalSquare,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -61,6 +63,7 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
       titleKey: "nav.section.overview",
       items: [
         { to: "/executive", labelKey: "nav.executive", icon: LineChart, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/dashboards", labelKey: "nav.dashboards", icon: Grid3x3, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
         { to: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
         { to: "/ai", labelKey: "nav.ai", icon: Sparkles, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
       ],
@@ -78,6 +81,7 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
         { to: "/incidents", labelKey: "nav.incidents", icon: AlertTriangle, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
         { to: "/infrastructure", labelKey: "nav.infra", icon: Server, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
         { to: "/sla", labelKey: "nav.sla", icon: GaugeCircle, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/terminal", labelKey: "nav.terminal", icon: TerminalSquare, allow: ["super_admin", "admin", "operator"] },
       ],
     },
     {
@@ -124,16 +128,16 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
         <div className="relative">
-          <img src={logo} alt="Poulina ChatOps logo" className="h-9 w-9 rounded-md object-contain" />
+          <img src={logo} alt="Poulina AI Hub logo" className="h-9 w-9 rounded-md object-contain" />
           <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-success ring-2 ring-sidebar" />
         </div>
         {(!collapsed || isMobile) && (
           <div className="min-w-0 flex-1 animate-fade-in">
             <p className="truncate text-sm font-semibold tracking-tight text-sidebar-accent-foreground">
-              Poulina ChatOps
+              Poulina AI Hub
             </p>
             <p className="truncate text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              Operations Hub
+              Corporate Operational OS
             </p>
           </div>
         )}
