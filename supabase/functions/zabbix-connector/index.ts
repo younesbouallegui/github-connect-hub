@@ -43,7 +43,10 @@ async function zabbixRpc({ url, token, method, params }: ZabbixRpcOpts) {
     },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Zabbix HTTP ${res.status}`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Zabbix HTTP ${res.status} at ${endpoint}${text ? `: ${text.slice(0, 200)}` : ""}`);
+  }
   const json = await res.json();
   if (json.error) throw new Error(`Zabbix RPC: ${json.error.data || json.error.message}`);
   return json.result;
