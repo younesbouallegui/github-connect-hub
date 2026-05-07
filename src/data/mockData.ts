@@ -1,5 +1,5 @@
 /**
- * Mock data for the Poulina ChatOps platform.
+ * Mock data for the Poulina AI Hub platform.
  * In production this would be served by the backend, scoped to the
  * authenticated user via RBAC checks.
  */
