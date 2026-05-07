@@ -19,6 +19,8 @@ import {
   Building2,
   ScrollText,
   Plug,
+  Grid3x3,
+  TerminalSquare,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
