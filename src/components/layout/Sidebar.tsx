@@ -63,6 +63,7 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
       titleKey: "nav.section.overview",
       items: [
         { to: "/executive", labelKey: "nav.executive", icon: LineChart, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/dashboards", labelKey: "nav.dashboards", icon: Grid3x3, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
         { to: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
         { to: "/ai", labelKey: "nav.ai", icon: Sparkles, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
       ],
@@ -80,6 +81,7 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
         { to: "/incidents", labelKey: "nav.incidents", icon: AlertTriangle, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
         { to: "/infrastructure", labelKey: "nav.infra", icon: Server, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
         { to: "/sla", labelKey: "nav.sla", icon: GaugeCircle, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/terminal", labelKey: "nav.terminal", icon: TerminalSquare, allow: ["super_admin", "admin", "operator"] },
       ],
     },
     {
