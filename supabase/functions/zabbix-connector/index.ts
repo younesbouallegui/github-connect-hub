@@ -26,12 +26,13 @@ interface ZabbixRpcOpts {
 
 async function zabbixRpc({ url, token, method, params }: ZabbixRpcOpts) {
   const endpoint = url.replace(/\/+$/, "") + "/api_jsonrpc.php";
-  const body = {
+  // Zabbix 7.2+ rejects "auth" in body — use Bearer header only.
+  // apiinfo.version must NOT include auth at all.
+  const body: Record<string, unknown> = {
     jsonrpc: "2.0",
     method,
     params: params ?? {},
     id: 1,
-    auth: token, // older Zabbix
   };
   const res = await fetch(endpoint, {
     method: "POST",
