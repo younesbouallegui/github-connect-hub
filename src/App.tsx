@@ -26,6 +26,8 @@ import GovernanceUsers from "./pages/governance/Users";
 import GovernanceDepartments from "./pages/governance/Departments";
 import GovernanceAuditLog from "./pages/governance/AuditLog";
 import IntegrationCenter from "./pages/integrations/IntegrationCenter";
+import Dashboards from "./pages/Dashboards";
+import TerminalPage from "./pages/Terminal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +54,15 @@ const App = () => (
                   <Route path="/executive" element={<Executive />} />
                   <Route path="/alerts" element={<Alerts />} />
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/dashboards" element={<Dashboards />} />
+                  <Route
+                    path="/terminal"
+                    element={
+                      <RoleGuard allow={["super_admin", "admin", "operator"]}>
+                        <TerminalPage />
+                      </RoleGuard>
+                    }
+                  />
                   <Route path="/incidents" element={<Incidents />} />
                   <Route path="/ai" element={<AIInsights />} />
                   <Route path="/s/:eventId" element={<IncidentChat />} />
