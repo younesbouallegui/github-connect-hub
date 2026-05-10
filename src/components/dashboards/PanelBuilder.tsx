@@ -30,6 +30,7 @@ import type {
   MetricKind,
   PanelConfig,
   PanelScope,
+  PanelThreshold,
   ScopeKind,
   VizKind,
 } from "@/types/monitoring";
@@ -68,8 +69,8 @@ export const PanelBuilder = ({ open, onClose, onSave }: PanelBuilderProps) => {
 
   const scopeOptions = useMemo(() => {
     const q = search.toLowerCase();
-    const filter = <T extends { id?: string; name?: string }>(arr: T[], idKey: "id" | "name" = "id") =>
-      arr.filter((it: any) => (it.name ?? it.id).toLowerCase().includes(q));
+    const filter = <T extends { id?: string; name?: string }>(arr: T[]) =>
+      arr.filter((it) => ((it.name ?? it.id) ?? "").toLowerCase().includes(q));
     switch (scope.kind) {
       case "host": return HOSTS.filter((h) => h.name.toLowerCase().includes(q)).map((h) => ({ id: h.id, label: h.name, sub: h.fqdn ?? "" }));
       case "host_group": return filter(HOST_GROUPS).map((g) => ({ id: g.id, label: g.name, sub: g.department ?? "" }));
@@ -288,7 +289,7 @@ export const PanelBuilder = ({ open, onClose, onSave }: PanelBuilderProps) => {
                         setConfig((c) => ({ ...c, thresholds: c.thresholds.map((th, j) => j === i ? { ...th, value: v } : th) }));
                       }} className="w-24" />
                       <select value={t.color} onChange={(e) => {
-                        const color = e.target.value as any;
+                        const color = e.target.value as PanelThreshold["color"];
                         setConfig((c) => ({ ...c, thresholds: c.thresholds.map((th, j) => j === i ? { ...th, color } : th) }));
                       }} className="h-9 rounded-md border border-input bg-background px-2 text-xs">
                         <option value="ok">ok</option><option value="info">info</option>
