@@ -24,7 +24,42 @@ interface ZabbixRpcOpts {
   params?: unknown;
 }
 
-async function zabbixRpc({ url, token, method, params }: ZabbixRpcOpts) {
+interface ZabbixHost {
+  hostid: string;
+  host: string;
+  name?: string;
+  status?: string;
+  available?: string | number;
+  interfaces?: Array<{ ip?: string }>;
+  tags?: Array<{ tag: string; value: string }>;
+}
+
+interface ZabbixHostGroup {
+  groupid: string;
+  name: string;
+}
+
+interface ZabbixTrigger {
+  triggerid: string;
+  hosts?: Array<{ hostid: string }>;
+}
+
+interface ZabbixProblem {
+  eventid: string;
+  objectid: string;
+  severity: string;
+  acknowledged?: string;
+  name?: string;
+  opdata?: string;
+  clock: string;
+}
+
+interface HostRow {
+  id: string;
+  external_id: string;
+}
+
+async function zabbixRpc<T = unknown>({ url, token, method, params }: ZabbixRpcOpts): Promise<T> {
   const endpoint = url.replace(/\/+$/, "") + "/api_jsonrpc.php";
   // Zabbix 7.2+ rejects "auth" in body — use Bearer header only.
   // apiinfo.version must NOT include auth at all.
