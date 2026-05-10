@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -115,11 +116,19 @@ export const PanelBuilder = ({ open, onClose, onSave }: PanelBuilderProps) => {
     close();
   };
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-elevated">
+  if (!open) return null;
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-stretch justify-end bg-foreground/50 backdrop-blur-sm animate-fade-in">
+      <div className="flex h-full w-full max-w-[min(1100px,100vw)] flex-col overflow-hidden border-l border-border bg-card shadow-elevated">
         {/* header */}
         <div className="flex items-center justify-between border-b border-border bg-muted/30 px-6 py-4">
           <div>
