@@ -349,6 +349,7 @@ export const PanelBuilder = ({ open, onClose, onSave }: PanelBuilderProps) => {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
