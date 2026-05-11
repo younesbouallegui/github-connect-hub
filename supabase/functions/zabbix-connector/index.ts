@@ -1,8 +1,9 @@
 // Zabbix connector — secure server-side proxy + sync engine.
 // Uses ZABBIX_URL and ZABBIX_API_TOKEN secrets. Token never leaves the server.
 // Actions:
-//   test        -> validate connection, return version + latency
-//   sync        -> pull host_groups, hosts, problems → upsert into monitoring_* tables
+//   test        -> validate connection, return version + latency (admin only)
+//   sync        -> pull host_groups, hosts, problems → upsert into monitoring_* tables (admin only)
+//   query       -> whitelisted read-only Zabbix JSON-RPC proxy (authenticated users)
 //   call        -> generic Zabbix JSON-RPC pass-through (admin only)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -59,6 +60,51 @@ interface HostRow {
   external_id: string;
 }
 
+interface CallerContext {
+  ok: true;
+  userId: string;
+  roles: string[];
+}
+
+class ConnectorError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public status = 500,
+    public detail?: string,
+  ) {
+    super(message);
+    this.name = "ConnectorError";
+  }
+}
+
+const QUERY_METHODS = new Set([
+  "host.get",
+  "hostgroup.get",
+  "problem.get",
+  "trigger.get",
+  "item.get",
+  "history.get",
+  "event.get",
+  "service.get",
+  "sla.get",
+  "map.get",
+  "dashboard.get",
+]);
+
+const rpcErrorKind = (message: string) => {
+  if (/timeout|aborted|timed out/i.test(message)) return { code: "network_timeout", status: 504 };
+  if (/auth|token|session terminated|not authorized|permission denied|no permissions/i.test(message)) {
+    return { code: "zabbix_auth_failure", status: 401 };
+  }
+  if (/fetch failed|network|econn|enotfound|tls|certificate/i.test(message)) return { code: "zabbix_network_error", status: 502 };
+  return { code: "zabbix_rpc_error", status: 502 };
+};
+
+function logEvent(event: string, payload: Record<string, unknown>) {
+  console.log(JSON.stringify({ event, ts: new Date().toISOString(), ...payload }));
+}
+
 async function zabbixRpc<T = unknown>({ url, token, method, params }: ZabbixRpcOpts): Promise<T> {
   const endpoint = url.replace(/\/+$/, "") + "/api_jsonrpc.php";
   // Zabbix 7.2+ rejects "auth" in body — use Bearer header only.
@@ -76,11 +122,23 @@ async function zabbixRpc<T = unknown>({ url, token, method, params }: ZabbixRpcO
   if (method !== "apiinfo.version") {
     headers.Authorization = `Bearer ${token}`;
   }
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort("network_timeout"), 15_000);
+  let res: Response;
+  try {
+    res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (controller.signal.aborted) throw new Error("Zabbix network timeout after 15000ms");
+    throw new Error(`Zabbix network error: ${msg}`);
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Zabbix HTTP ${res.status} at ${endpoint}${text ? `: ${text.slice(0, 200)}` : ""}`);
