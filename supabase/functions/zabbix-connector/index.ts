@@ -166,6 +166,51 @@ async function getCallerRoles(authHeader: string) {
   return { ok: true as const, userId, roles: (roles ?? []).map((r) => r.role as string) };
 }
 
+async function handleQuery(
+  input: { method?: unknown; params?: unknown },
+  caller: CallerContext,
+  credentials: { url: string; token: string },
+) {
+  if (!caller?.userId) {
+    throw new ConnectorError("unauthorized", "Unauthorized", 401);
+  }
+
+  const method = typeof input.method === "string" ? input.method.trim() : "";
+  if (!method) {
+    throw new ConnectorError("invalid_method", "method required", 400);
+  }
+  if (!QUERY_METHODS.has(method)) {
+    throw new ConnectorError("permission_denied", `Method '${method}' is not allowed via query`, 403);
+  }
+
+  const started = Date.now();
+  logEvent("zabbix.query.start", { userId: caller.userId, method });
+  try {
+    const result = await zabbixRpc({
+      url: credentials.url,
+      token: credentials.token,
+      method,
+      params: input.params ?? {},
+    });
+    logEvent("zabbix.query.success", { userId: caller.userId, method, duration_ms: Date.now() - started });
+    return json({ ok: true, action: "query", method, result });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    const kind = rpcErrorKind(detail);
+    logEvent("zabbix.query.failure", { userId: caller.userId, method, code: kind.code, detail, duration_ms: Date.now() - started });
+    return json({ ok: false, code: kind.code, error: humanError(kind.code), detail }, kind.status);
+  }
+}
+
+function humanError(code: string) {
+  if (code === "zabbix_auth_failure") return "Zabbix authentication failed";
+  if (code === "permission_denied") return "Permission denied";
+  if (code === "invalid_method") return "Invalid method";
+  if (code === "network_timeout") return "Zabbix network timeout";
+  if (code === "zabbix_network_error") return "Could not reach Zabbix API";
+  return "Zabbix request failed";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -198,6 +243,10 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+    if (action === "query") {
+      return await handleQuery({ method, params }, caller, { url, token });
+    }
 
     if (action === "test") {
       // Multi-step real validation: reachability → version → token (host.get) → data sample
