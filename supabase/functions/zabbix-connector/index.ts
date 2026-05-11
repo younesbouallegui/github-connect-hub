@@ -228,6 +228,10 @@ Deno.serve(async (req) => {
     const { action, providerId, method, params } = body;
     if (!action) return json({ error: "Missing action" }, 400);
 
+    if (!["test", "sync", "query", "call"].includes(action)) {
+      return json({ error: `Unknown action: ${action}` }, 400);
+    }
+
     // Only `test`, `sync`, `call` require admin. Read-only `query` is open to any auth user.
     if (action !== "query" && !isAdmin) {
       return json({ error: "Forbidden — admin only" }, 403);
@@ -244,8 +248,15 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    if (action === "query") {
-      return await handleQuery({ method, params }, caller, { url, token });
+    switch (action) {
+      case "query":
+        return await handleQuery({ method, params }, caller, { url, token });
+      case "test":
+      case "sync":
+      case "call":
+        break;
+      default:
+        return json({ error: `Unknown action: ${action}` }, 400);
     }
 
     if (action === "test") {
@@ -488,34 +499,6 @@ Deno.serve(async (req) => {
       if (!method) return json({ error: "method required" }, 400);
       const result = await zabbixRpc({ url, token, method, params });
       return json({ ok: true, result });
-    }
-
-    // ---- Read-only query (auth users) ----
-    // Whitelist of safe, read-only Zabbix RPC methods exposed to the frontend.
-    const READ_METHODS = new Set([
-      "apiinfo.version",
-      "host.get", "hostgroup.get", "hostinterface.get",
-      "problem.get", "event.get", "trigger.get",
-      "item.get", "history.get", "trend.get",
-      "service.get", "sla.get", "sla.getsli",
-      "map.get", "graph.get", "dashboard.get",
-      "user.get", "usergroup.get", "role.get",
-      "mediatype.get", "action.get", "template.get",
-      "maintenance.get", "discoveryrule.get", "httptest.get",
-    ]);
-
-    if (action === "query") {
-      if (!method) return json({ error: "method required" }, 400);
-      if (!READ_METHODS.has(method)) {
-        return json({ error: `Method '${method}' not allowed via query. Use 'call' (admin only).` }, 403);
-      }
-      try {
-        const result = await zabbixRpc({ url, token, method, params });
-        return json({ ok: true, result });
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        return json({ ok: false, error: msg }, 502);
-      }
     }
 
     return json({ error: `Unknown action: ${action}` }, 400);
