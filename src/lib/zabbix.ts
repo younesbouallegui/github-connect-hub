@@ -48,11 +48,26 @@ export const severityName = (s: string | number): ZSeverity =>
 
 /** Map Zabbix severity → app's 4-tier (critical/high/medium/low). */
 export const severityTier = (s: string | number): "critical" | "high" | "medium" | "low" => {
+  const named = String(s).toLowerCase();
+  if (named === "disaster" || named === "critical") return "critical";
+  if (named === "high") return "high";
+  if (named === "average" || named === "warning") return "medium";
+  if (named === "info" || named === "not_classified") return "low";
   const n = typeof s === "number" ? s : parseInt(s, 10);
   if (n >= 5) return "critical";
   if (n === 4) return "high";
   if (n === 3 || n === 2) return "medium";
   return "low";
+};
+
+const severityNumber = (s?: string | null) => {
+  const name = String(s ?? "warning").toLowerCase();
+  if (name === "disaster" || name === "critical") return "5";
+  if (name === "high") return "4";
+  if (name === "average") return "3";
+  if (name === "warning") return "2";
+  if (name === "info") return "1";
+  return "0";
 };
 
 interface QueryArgs {
