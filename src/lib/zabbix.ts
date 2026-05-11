@@ -104,7 +104,11 @@ export async function zabbixQuery<T = unknown>(args: QueryArgs): Promise<T> {
   const { data, error } = await supabase.functions.invoke("zabbix-connector", {
     body: { action: "query", ...args },
   });
-  if (error) throw new Error(error.message ?? "Zabbix request failed");
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const body = context ? await context.clone().json().catch(() => null) : null;
+    throw new Error(body?.error ? `${error.message}: ${body.error}` : error.message ?? "Zabbix request failed");
+  }
   if (!data?.ok) throw new Error(data?.error ?? "Zabbix returned an error");
   return data.result as T;
 }
