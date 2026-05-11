@@ -1,8 +1,9 @@
 // Zabbix connector — secure server-side proxy + sync engine.
 // Uses ZABBIX_URL and ZABBIX_API_TOKEN secrets. Token never leaves the server.
 // Actions:
-//   test        -> validate connection, return version + latency
-//   sync        -> pull host_groups, hosts, problems → upsert into monitoring_* tables
+//   test        -> validate connection, return version + latency (admin only)
+//   sync        -> pull host_groups, hosts, problems → upsert into monitoring_* tables (admin only)
+//   query       -> whitelisted read-only Zabbix JSON-RPC proxy (authenticated users)
 //   call        -> generic Zabbix JSON-RPC pass-through (admin only)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -16,6 +17,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const CONNECTOR_VERSION = "2026-05-11-query-router-v1";
 
 interface ZabbixRpcOpts {
   url: string;
@@ -59,6 +61,40 @@ interface HostRow {
   external_id: string;
 }
 
+interface CallerContext {
+  ok: true;
+  userId: string;
+  roles: string[];
+}
+
+const QUERY_METHODS = new Set([
+  "apiinfo.version",
+  "host.get",
+  "hostgroup.get",
+  "problem.get",
+  "trigger.get",
+  "item.get",
+  "history.get",
+  "event.get",
+  "service.get",
+  "sla.get",
+  "map.get",
+  "dashboard.get",
+]);
+
+const rpcErrorKind = (message: string) => {
+  if (/timeout|aborted|timed out/i.test(message)) return { code: "network_timeout", status: 504 };
+  if (/auth|token|session terminated|not authorized|permission denied|no permissions/i.test(message)) {
+    return { code: "zabbix_auth_failure", status: 401 };
+  }
+  if (/fetch failed|network|econn|enotfound|tls|certificate/i.test(message)) return { code: "zabbix_network_error", status: 502 };
+  return { code: "zabbix_rpc_error", status: 502 };
+};
+
+function logEvent(event: string, payload: Record<string, unknown>) {
+  console.log(JSON.stringify({ event, ts: new Date().toISOString(), ...payload }));
+}
+
 async function zabbixRpc<T = unknown>({ url, token, method, params }: ZabbixRpcOpts): Promise<T> {
   const endpoint = url.replace(/\/+$/, "") + "/api_jsonrpc.php";
   // Zabbix 7.2+ rejects "auth" in body — use Bearer header only.
@@ -76,11 +112,23 @@ async function zabbixRpc<T = unknown>({ url, token, method, params }: ZabbixRpcO
   if (method !== "apiinfo.version") {
     headers.Authorization = `Bearer ${token}`;
   }
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort("network_timeout"), 15_000);
+  let res: Response;
+  try {
+    res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (controller.signal.aborted) throw new Error("Zabbix network timeout after 15000ms");
+    throw new Error(`Zabbix network error: ${msg}`);
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Zabbix HTTP ${res.status} at ${endpoint}${text ? `: ${text.slice(0, 200)}` : ""}`);
@@ -108,6 +156,53 @@ async function getCallerRoles(authHeader: string) {
   return { ok: true as const, userId, roles: (roles ?? []).map((r) => r.role as string) };
 }
 
+async function handleQuery(
+  input: { method?: unknown; params?: unknown },
+  caller: CallerContext,
+  credentials: { url: string; token: string },
+) {
+  if (!caller?.userId) {
+    return json({ ok: false, code: "unauthorized", error: "Unauthorized" }, 401);
+  }
+
+  const method = typeof input.method === "string" ? input.method.trim() : "";
+  if (!method) {
+    logEvent("zabbix.query.rejected", { userId: caller.userId, code: "invalid_method" });
+    return json({ ok: false, code: "invalid_method", error: "Invalid method", detail: "method required" }, 400);
+  }
+  if (!QUERY_METHODS.has(method)) {
+    logEvent("zabbix.query.rejected", { userId: caller.userId, method, code: "permission_denied" });
+    return json({ ok: false, code: "permission_denied", error: "Permission denied", detail: `Method '${method}' is not allowed via query` }, 403);
+  }
+
+  const started = Date.now();
+  logEvent("zabbix.query.start", { userId: caller.userId, method });
+  try {
+    const result = await zabbixRpc({
+      url: credentials.url,
+      token: credentials.token,
+      method,
+      params: input.params ?? {},
+    });
+    logEvent("zabbix.query.success", { userId: caller.userId, method, duration_ms: Date.now() - started });
+    return json({ ok: true, action: "query", method, connectorVersion: CONNECTOR_VERSION, result });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    const kind = rpcErrorKind(detail);
+    logEvent("zabbix.query.failure", { userId: caller.userId, method, code: kind.code, detail, duration_ms: Date.now() - started });
+    return json({ ok: false, code: kind.code, error: humanError(kind.code), detail }, kind.status);
+  }
+}
+
+function humanError(code: string) {
+  if (code === "zabbix_auth_failure") return "Zabbix authentication failed";
+  if (code === "permission_denied") return "Permission denied";
+  if (code === "invalid_method") return "Invalid method";
+  if (code === "network_timeout") return "Zabbix network timeout";
+  if (code === "zabbix_network_error") return "Could not reach Zabbix API";
+  return "Zabbix request failed";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -125,6 +220,10 @@ Deno.serve(async (req) => {
     const { action, providerId, method, params } = body;
     if (!action) return json({ error: "Missing action" }, 400);
 
+    if (!["test", "sync", "query", "call"].includes(action)) {
+      return json({ error: `Unknown action: ${action}` }, 400);
+    }
+
     // Only `test`, `sync`, `call` require admin. Read-only `query` is open to any auth user.
     if (action !== "query" && !isAdmin) {
       return json({ error: "Forbidden — admin only" }, 403);
@@ -141,6 +240,17 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+    switch (action) {
+      case "query":
+        return await handleQuery({ method, params }, caller, { url, token });
+      case "test":
+      case "sync":
+      case "call":
+        break;
+      default:
+        return json({ error: `Unknown action: ${action}` }, 400);
+    }
+
     if (action === "test") {
       // Multi-step real validation: reachability → version → token (host.get) → data sample
       const start = Date.now();
@@ -152,7 +262,7 @@ Deno.serve(async (req) => {
         checks.reachable = { ok: true, detail: `v${version}` };
       } catch (e) {
         checks.reachable = { ok: false, detail: e instanceof Error ? e.message : String(e) };
-        return json({ ok: false, status: "api_unreachable", checks, version, latency_ms: Date.now() - start }, 200);
+        return json({ ok: false, status: "api_unreachable", checks, version, connectorVersion: CONNECTOR_VERSION, latency_ms: Date.now() - start }, 200);
       }
       try {
         const probe = await zabbixRpc<ZabbixHost[]>({
@@ -168,7 +278,7 @@ Deno.serve(async (req) => {
         derivedStatus = /auth|token|permission|not authori/i.test(msg) ? "authentication_failed" : "api_unreachable";
       }
       const latency_ms = Date.now() - start;
-      return json({ ok: derivedStatus === "connected", status: derivedStatus, checks, version, latency_ms });
+      return json({ ok: derivedStatus === "connected", status: derivedStatus, checks, version, connectorVersion: CONNECTOR_VERSION, latency_ms });
     }
 
     if (action === "sync") {
@@ -381,34 +491,6 @@ Deno.serve(async (req) => {
       if (!method) return json({ error: "method required" }, 400);
       const result = await zabbixRpc({ url, token, method, params });
       return json({ ok: true, result });
-    }
-
-    // ---- Read-only query (auth users) ----
-    // Whitelist of safe, read-only Zabbix RPC methods exposed to the frontend.
-    const READ_METHODS = new Set([
-      "apiinfo.version",
-      "host.get", "hostgroup.get", "hostinterface.get",
-      "problem.get", "event.get", "trigger.get",
-      "item.get", "history.get", "trend.get",
-      "service.get", "sla.get", "sla.getsli",
-      "map.get", "graph.get", "dashboard.get",
-      "user.get", "usergroup.get", "role.get",
-      "mediatype.get", "action.get", "template.get",
-      "maintenance.get", "discoveryrule.get", "httptest.get",
-    ]);
-
-    if (action === "query") {
-      if (!method) return json({ error: "method required" }, 400);
-      if (!READ_METHODS.has(method)) {
-        return json({ error: `Method '${method}' not allowed via query. Use 'call' (admin only).` }, 403);
-      }
-      try {
-        const result = await zabbixRpc({ url, token, method, params });
-        return json({ ok: true, result });
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        return json({ ok: false, error: msg }, 502);
-      }
     }
 
     return json({ error: `Unknown action: ${action}` }, 400);
