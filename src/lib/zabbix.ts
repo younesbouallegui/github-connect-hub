@@ -172,19 +172,25 @@ export function useZabbixVersion() {
 export function useZabbixHosts() {
   return useQuery<ZHost[]>({
     queryKey: ["zabbix", "hosts"],
-    queryFn: () =>
-      zabbixQuery<ZHost[]>({
-        method: "host.get",
-        params: {
-          output: ["hostid", "host", "name", "status", "available"],
-          selectInterfaces: ["ip", "dns", "type"],
-          selectGroups: ["groupid", "name"],
-          selectTags: "extend",
-          selectInventory: ["location", "location_lat", "location_lon", "os", "type", "vendor", "model"],
-          sortfield: "name",
-          limit: 500,
-        },
-      }),
+    queryFn: async () => {
+      try {
+        return await zabbixQuery<ZHost[]>({
+          method: "host.get",
+          params: {
+            output: ["hostid", "host", "name", "status", "available"],
+            selectInterfaces: ["ip", "dns", "type"],
+            selectGroups: ["groupid", "name"],
+            selectTags: "extend",
+            selectInventory: ["location", "location_lat", "location_lon", "os", "type", "vendor", "model"],
+            sortfield: "name",
+            limit: 500,
+          },
+        });
+      } catch (e) {
+        if (String(e instanceof Error ? e.message : e).includes("Unknown action: query")) return syncedHosts();
+        throw e;
+      }
+    },
     refetchInterval: 60_000,
     staleTime: 30_000,
     retry: 1,
@@ -195,16 +201,22 @@ export function useZabbixProblems() {
   return useQuery({
     queryKey: ["zabbix", "problems"],
     queryFn: async () => {
-      const problems = await zabbixQuery<ZProblem[]>({
-        method: "problem.get",
-        params: {
-          output: "extend",
-          recent: false,
-          sortfield: ["eventid"],
-          sortorder: "DESC",
-          limit: 200,
-        },
-      });
+      let problems: ZProblem[];
+      try {
+        problems = await zabbixQuery<ZProblem[]>({
+          method: "problem.get",
+          params: {
+            output: "extend",
+            recent: false,
+            sortfield: ["eventid"],
+            sortorder: "DESC",
+            limit: 200,
+          },
+        });
+      } catch (e) {
+        if (String(e instanceof Error ? e.message : e).includes("Unknown action: query")) return syncedProblems();
+        throw e;
+      }
       // Hydrate host names via trigger.get
       const triggerIds = Array.from(new Set(problems.map((p) => p.objectid).filter(Boolean)));
       if (triggerIds.length === 0) return problems;
