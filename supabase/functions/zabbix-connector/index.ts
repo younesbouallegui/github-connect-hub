@@ -223,6 +223,45 @@ function humanError(code: string) {
   return "Zabbix request failed";
 }
 
+async function handleWrite(
+  input: { method?: unknown; params?: unknown },
+  caller: CallerContext,
+  credentials: { url: string; token: string },
+  admin: ReturnType<typeof createClient>,
+) {
+  const method = typeof input.method === "string" ? input.method.trim() : "";
+  if (!method) return json({ ok: false, code: "invalid_method", error: "method required" }, 400);
+  if (!WRITE_METHODS.has(method)) {
+    logEvent("zabbix.write.rejected", { userId: caller.userId, method, code: "permission_denied" });
+    return json({ ok: false, code: "permission_denied", error: `Method '${method}' not allowed via write` }, 403);
+  }
+  const started = Date.now();
+  logEvent("zabbix.write.start", { userId: caller.userId, method });
+  try {
+    const result = await zabbixRpc({
+      url: credentials.url,
+      token: credentials.token,
+      method,
+      params: input.params ?? {},
+    });
+    await admin.from("zabbix_audit_log").insert({
+      user_id: caller.userId, action: "write", method,
+      params: input.params ?? {}, result: "ok",
+    }).then(() => {}, () => {});
+    logEvent("zabbix.write.success", { userId: caller.userId, method, duration_ms: Date.now() - started });
+    return json({ ok: true, action: "write", method, connectorVersion: CONNECTOR_VERSION, result });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    const kind = rpcErrorKind(detail);
+    await admin.from("zabbix_audit_log").insert({
+      user_id: caller.userId, action: "write", method,
+      params: input.params ?? {}, result: `error: ${detail}`.slice(0, 500),
+    }).then(() => {}, () => {});
+    logEvent("zabbix.write.failure", { userId: caller.userId, method, code: kind.code, detail });
+    return json({ ok: false, code: kind.code, error: humanError(kind.code), detail }, kind.status);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
