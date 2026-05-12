@@ -239,3 +239,300 @@ export function useZabbixProblems() {
     retry: 1,
   });
 }
+
+// ---------- Events / Incident timeline ----------
+
+export interface ZEvent {
+  eventid: string;
+  source: string;
+  object: string;
+  objectid: string;
+  clock: string;        // unix seconds
+  ns?: string;
+  value: string;        // "0" recovered, "1" problem
+  acknowledged?: string;
+  name?: string;
+  severity?: string;
+  hosts?: Array<{ hostid: string; name: string; host: string }>;
+  acknowledges?: Array<{ acknowledgeid: string; userid: string; message: string; clock: string; action?: string }>;
+  r_eventid?: string;
+}
+
+export function useZabbixEvents(opts?: { triggerIds?: string[]; limit?: number; timeFrom?: number }) {
+  const { triggerIds, limit = 200, timeFrom } = opts ?? {};
+  return useQuery<ZEvent[]>({
+    queryKey: ["zabbix", "events", triggerIds?.join(",") ?? "all", limit, timeFrom ?? 0],
+    queryFn: async () => {
+      const params: Record<string, unknown> = {
+        output: "extend",
+        select_acknowledges: "extend",
+        selectHosts: ["hostid", "name", "host"],
+        sortfield: ["clock", "eventid"],
+        sortorder: "DESC",
+        value: 1,
+        limit,
+      };
+      if (triggerIds?.length) params.objectids = triggerIds;
+      if (timeFrom) params.time_from = timeFrom;
+      try {
+        return await zabbixQuery<ZEvent[]>({ method: "event.get", params });
+      } catch {
+        return [];
+      }
+    },
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
+export async function acknowledgeEvent(eventId: string, message: string) {
+  const { data, error } = await supabase.functions.invoke("zabbix-connector", {
+    body: {
+      action: "write",
+      method: "event.acknowledge",
+      params: { eventids: eventId, action: 6, message }, // 2=ack + 4=add msg
+    },
+  });
+  if (error) throw new Error(error.message);
+  if (!data?.ok) throw new Error(data?.error ?? "Failed to acknowledge");
+  return data.result;
+}
+
+// ---------- Business services / SLA ----------
+
+export interface ZService {
+  serviceid: string;
+  name: string;
+  status: string;
+  algorithm?: string;
+  sortorder?: string;
+  description?: string;
+  parents?: Array<{ serviceid: string }>;
+  children?: Array<{ serviceid: string; name?: string }>;
+  problem_tags?: Array<{ tag: string; value: string }>;
+}
+
+export function useZabbixServices() {
+  return useQuery<ZService[]>({
+    queryKey: ["zabbix", "services"],
+    queryFn: async () => {
+      try {
+        return await zabbixQuery<ZService[]>({
+          method: "service.get",
+          params: {
+            output: "extend",
+            selectParents: ["serviceid"],
+            selectChildren: ["serviceid", "name"],
+            selectProblemTags: "extend",
+          },
+        });
+      } catch {
+        return [];
+      }
+    },
+    refetchInterval: 5 * 60_000,
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
+
+export interface ZSLA {
+  slaid: string;
+  name: string;
+  period: string;
+  slo: string;
+  status: string;
+}
+
+export function useZabbixSLAs() {
+  return useQuery<ZSLA[]>({
+    queryKey: ["zabbix", "slas"],
+    queryFn: async () => {
+      try {
+        return await zabbixQuery<ZSLA[]>({ method: "sla.get", params: { output: "extend" } });
+      } catch {
+        return [];
+      }
+    },
+    refetchInterval: 5 * 60_000,
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
+
+// ---------- Dashboards / Maps ----------
+
+export interface ZDashboard {
+  dashboardid: string;
+  name: string;
+  display_period?: string;
+  pages?: Array<{ name?: string; widgets?: Array<{ type: string; name?: string; x: number; y: number; width: number; height: number; fields?: unknown[] }> }>;
+}
+
+export function useZabbixDashboards() {
+  return useQuery<ZDashboard[]>({
+    queryKey: ["zabbix", "dashboards"],
+    queryFn: async () => {
+      try {
+        return await zabbixQuery<ZDashboard[]>({
+          method: "dashboard.get",
+          params: { output: "extend", selectPages: "extend" },
+        });
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+}
+
+export interface ZMap {
+  sysmapid: string;
+  name: string;
+  width?: string;
+  height?: string;
+  selements?: Array<{ selementid: string; label?: string; elementtype?: string; x?: string; y?: string; elements?: Array<{ hostid?: string }> }>;
+  links?: Array<{ linkid: string; selementid1: string; selementid2: string; color?: string }>;
+}
+
+export function useZabbixMaps() {
+  return useQuery<ZMap[]>({
+    queryKey: ["zabbix", "maps"],
+    queryFn: async () => {
+      try {
+        return await zabbixQuery<ZMap[]>({
+          method: "map.get",
+          params: { output: "extend", selectSelements: "extend", selectLinks: "extend" },
+        });
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+}
+
+// ---------- Users / IAM ----------
+
+export interface ZUser {
+  userid: string;
+  username: string;
+  name?: string;
+  surname?: string;
+  roleid?: string;
+  url?: string;
+  autologin?: string;
+  usrgrps?: Array<{ usrgrpid: string; name?: string }>;
+}
+export interface ZUserGroup { usrgrpid: string; name: string; users_status?: string; gui_access?: string; }
+export interface ZRole { roleid: string; name: string; type?: string; readonly?: string; }
+
+export function useZabbixUsers() {
+  return useQuery<ZUser[]>({
+    queryKey: ["zabbix", "users"],
+    queryFn: async () => {
+      try {
+        return await zabbixQuery<ZUser[]>({
+          method: "user.get",
+          params: { output: "extend", selectUsrgrps: ["usrgrpid", "name"] },
+        });
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+}
+
+export function useZabbixUserGroups() {
+  return useQuery<ZUserGroup[]>({
+    queryKey: ["zabbix", "usergroups"],
+    queryFn: async () => {
+      try {
+        return await zabbixQuery<ZUserGroup[]>({ method: "usergroup.get", params: { output: "extend" } });
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 10 * 60_000,
+    retry: 1,
+  });
+}
+
+export function useZabbixRoles() {
+  return useQuery<ZRole[]>({
+    queryKey: ["zabbix", "roles"],
+    queryFn: async () => {
+      try {
+        return await zabbixQuery<ZRole[]>({ method: "role.get", params: { output: "extend" } });
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 10 * 60_000,
+    retry: 1,
+  });
+}
+
+// ---------- Helpers ----------
+
+export const severityColor = (s: string | number): string => {
+  const t = severityTier(s);
+  if (t === "critical") return "#dc2626";
+  if (t === "high") return "#ea580c";
+  if (t === "medium") return "#eab308";
+  return "#22c55e";
+};
+
+/** Resolve a host's lat/lon from inventory or fallback country centroid. */
+export function hostCoords(h: ZHost): { lat: number; lon: number } | null {
+  const inv = (h.inventory && !Array.isArray(h.inventory) ? h.inventory : {}) as Record<string, string>;
+  const lat = parseFloat(inv.location_lat ?? "");
+  const lon = parseFloat(inv.location_lon ?? "");
+  if (Number.isFinite(lat) && Number.isFinite(lon) && (lat !== 0 || lon !== 0)) return { lat, lon };
+  // Country centroid fallback by tag value `country` or inventory location.
+  const country = (h.tags?.find((t) => t.tag.toLowerCase() === "country")?.value ?? "").toLowerCase();
+  const loc = (inv.location ?? "").toLowerCase();
+  const key = country || loc;
+  for (const [name, c] of Object.entries(COUNTRY_CENTROIDS)) {
+    if (key.includes(name)) return c;
+  }
+  return null;
+}
+
+// Compact built-in country centroid table for offline geocoding fallback.
+export const COUNTRY_CENTROIDS: Record<string, { lat: number; lon: number }> = {
+  tunisia: { lat: 33.89, lon: 9.54 },
+  tunis: { lat: 36.81, lon: 10.18 },
+  france: { lat: 46.23, lon: 2.21 },
+  paris: { lat: 48.85, lon: 2.35 },
+  germany: { lat: 51.17, lon: 10.45 },
+  berlin: { lat: 52.52, lon: 13.40 },
+  "united kingdom": { lat: 55.38, lon: -3.43 },
+  uk: { lat: 55.38, lon: -3.43 },
+  london: { lat: 51.51, lon: -0.13 },
+  "united states": { lat: 39.83, lon: -98.58 },
+  usa: { lat: 39.83, lon: -98.58 },
+  spain: { lat: 40.46, lon: -3.74 },
+  italy: { lat: 41.87, lon: 12.57 },
+  morocco: { lat: 31.79, lon: -7.09 },
+  algeria: { lat: 28.03, lon: 1.66 },
+  egypt: { lat: 26.82, lon: 30.80 },
+  "saudi arabia": { lat: 23.89, lon: 45.08 },
+  uae: { lat: 23.42, lon: 53.85 },
+  india: { lat: 20.59, lon: 78.96 },
+  china: { lat: 35.86, lon: 104.20 },
+  japan: { lat: 36.20, lon: 138.25 },
+  brazil: { lat: -14.24, lon: -51.93 },
+  canada: { lat: 56.13, lon: -106.35 },
+  australia: { lat: -25.27, lon: 133.78 },
+  netherlands: { lat: 52.13, lon: 5.29 },
+  sweden: { lat: 60.13, lon: 18.64 },
+  ireland: { lat: 53.41, lon: -8.24 },
+  singapore: { lat: 1.35, lon: 103.82 },
+};
+
