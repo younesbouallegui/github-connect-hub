@@ -26,6 +26,8 @@ import GovernanceAuditLog from "./pages/governance/AuditLog";
 import IntegrationCenter from "./pages/integrations/IntegrationCenter";
 import Dashboards from "./pages/Dashboards";
 import TerminalPage from "./pages/Terminal";
+import Maps from "./pages/Maps";
+import Executive from "./pages/Executive";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,7 +51,8 @@ const App = () => (
                   }
                 >
                   <Route path="/" element={<Navigate to="/dashboards" replace />} />
-                  <Route path="/executive" element={<Navigate to="/dashboards" replace />} />
+                  <Route path="/executive" element={<Executive />} />
+                  <Route path="/maps" element={<Maps />} />
                   <Route path="/dashboard" element={<Navigate to="/dashboards" replace />} />
                   <Route path="/alerts" element={<Alerts />} />
                   <Route path="/dashboards" element={<Dashboards />} />
