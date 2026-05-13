@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useI18n } from "@/contexts/I18nContext";
 import { Layers, Loader2, ShieldAlert, Activity, AlertTriangle } from "lucide-react";
-import { useZabbixServices, useZabbixProblems, severityTier } from "@/lib/zabbix";
+import { useZabbixServices, useZabbixProblems } from "@/lib/zabbix";
 
 const STATUS_DOT: Record<string, string> = {
   ok: "bg-success",
