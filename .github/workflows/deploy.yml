@@ -30,9 +30,19 @@ jobs:
           version: latest
 
       - name: Deploy Zabbix connector edge function
+        # Requires repo secret SUPABASE_ACCESS_TOKEN (Supabase dashboard → Account → Access Tokens).
+        # Step is skipped (not failed) when the secret is absent, so frontend deploy still ships.
+        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase functions deploy zabbix-connector --project-ref sthwjunbanntnnakdkyi
+        run: supabase functions deploy zabbix-connector --project-ref sthwjunbanntnnakdkyi --no-verify-jwt
+
+      - name: Warn if Supabase deploy was skipped
+        if: ${{ env.SUPABASE_ACCESS_TOKEN == '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "::warning title=Supabase deploy skipped::SUPABASE_ACCESS_TOKEN secret is not set. Add it under Settings → Secrets and variables → Actions to enable automatic edge-function deployment."
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
