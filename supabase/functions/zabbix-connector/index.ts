@@ -99,7 +99,14 @@ const WRITE_METHODS = new Set([
   "user.create",
   "user.update",
   "user.delete",
+  "usergroup.create",
+  "usergroup.update",
+  "usergroup.delete",
+  "role.create",
+  "role.update",
+  "role.delete",
   "host.update",
+  "host.massupdate",
 ]);
 
 const rpcErrorKind = (message: string) => {
