@@ -21,6 +21,8 @@ import {
   Plug,
   Grid3x3,
   TerminalSquare,
+  Globe2,
+  Map as MapIcon,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
