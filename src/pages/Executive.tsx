@@ -408,6 +408,9 @@ export default function Executive() {
         <div className="lg:col-span-4">
           <AppOpsCenter />
         </div>
+        <div className="lg:col-span-4">
+          <InfraOpsCenter />
+        </div>
       </div>
       )}
     </div>
