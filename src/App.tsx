@@ -28,6 +28,11 @@ import Dashboards from "./pages/Dashboards";
 import TerminalPage from "./pages/Terminal";
 import Maps from "./pages/Maps";
 import Executive from "./pages/Executive";
+import ApplicationsCommand from "./pages/applications/Command";
+import ApplicationsRegistry from "./pages/applications/Registry";
+import ApplicationsTopology from "./pages/applications/Topology";
+import ApplicationsAlerts from "./pages/applications/Alerts";
+import ApplicationDetail from "./pages/applications/Detail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
