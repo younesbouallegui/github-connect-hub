@@ -18,6 +18,7 @@ import {
   useZabbixServices, useZabbixSLAs, useZabbixUsers, useZabbixUserGroups, useZabbixRoles,
 } from "@/lib/zabbix";
 import { cn } from "@/lib/utils";
+import { AppOpsCenter } from "@/components/executive/AppOpsCenter";
 
 const SEV_ORDER = ["disaster", "high", "average", "warning", "info"] as const;
 const SEV_COLORS: Record<string, string> = {
@@ -401,6 +402,11 @@ export default function Executive() {
             <Score label="Unknown" value={hosts.length ? (unknownHosts / hosts.length) * 100 : 0} suffix="%" inverse />
           </div>
         </Panel>
+
+        {/* Application Operations Center */}
+        <div className="lg:col-span-4">
+          <AppOpsCenter />
+        </div>
       </div>
       )}
     </div>

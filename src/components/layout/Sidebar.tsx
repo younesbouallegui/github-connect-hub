@@ -23,6 +23,10 @@ import {
   TerminalSquare,
   Globe2,
   Map as MapIcon,
+  AppWindow,
+  Network,
+  ClipboardList,
+  Siren,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -91,6 +95,15 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
       items: [
         { to: "/cmdb/assets", labelKey: "nav.cmdb.assets", icon: Boxes, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
         { to: "/cmdb/services", labelKey: "nav.cmdb.services", icon: Layers, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+      ],
+    },
+    {
+      titleKey: "nav.section.applications",
+      items: [
+        { to: "/applications", labelKey: "nav.apps.command", icon: AppWindow, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/applications/registry", labelKey: "nav.apps.registry", icon: ClipboardList, allow: ["super_admin", "admin", "operator"] },
+        { to: "/applications/topology", labelKey: "nav.apps.topology", icon: Network, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/applications/alerts", labelKey: "nav.apps.alerts", icon: Siren, allow: ["super_admin", "admin", "operator"] },
       ],
     },
     {
