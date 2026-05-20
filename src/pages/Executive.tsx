@@ -18,6 +18,7 @@ import {
   useZabbixServices, useZabbixSLAs, useZabbixUsers, useZabbixUserGroups, useZabbixRoles,
 } from "@/lib/zabbix";
 import { cn } from "@/lib/utils";
+import { AppOpsCenter } from "@/components/executive/AppOpsCenter";
 
 const SEV_ORDER = ["disaster", "high", "average", "warning", "info"] as const;
 const SEV_COLORS: Record<string, string> = {
