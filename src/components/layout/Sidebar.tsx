@@ -98,6 +98,15 @@ export const Sidebar = ({ mobileOpen, onMobileClose }: SidebarProps) => {
       ],
     },
     {
+      titleKey: "nav.section.applications",
+      items: [
+        { to: "/applications", labelKey: "nav.apps.command", icon: AppWindow, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/applications/registry", labelKey: "nav.apps.registry", icon: ClipboardList, allow: ["super_admin", "admin", "operator"] },
+        { to: "/applications/topology", labelKey: "nav.apps.topology", icon: Network, allow: ["super_admin", "admin", "operator", "viewer", "auditor"] },
+        { to: "/applications/alerts", labelKey: "nav.apps.alerts", icon: Siren, allow: ["super_admin", "admin", "operator"] },
+      ],
+    },
+    {
       titleKey: "nav.section.governance",
       items: [
         { to: "/governance/users", labelKey: "nav.gov.users", icon: UsersIcon, allow: ["super_admin", "admin"] },
