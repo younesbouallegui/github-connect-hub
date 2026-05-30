@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Filter, Loader2, RefreshCw, X, Zap } from "lucide-react";
+import { AlertTriangle, Brain, CheckCircle2, Filter, Loader2, RefreshCw, Wand2, X, Zap } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
@@ -12,6 +12,12 @@ import {
   useZabbixProblems,
   type ZProblem,
 } from "@/lib/zabbix";
+import { AiExplainPanel } from "@/components/incidents/AiExplainPanel";
+import { AutoRemediatePanel } from "@/components/incidents/AutoRemediatePanel";
+import { IncidentAuditTimeline } from "@/components/incidents/IncidentAuditTimeline";
+import { AiTrustBadge } from "@/components/incidents/AiTrustBadge";
+import { useAiPolicies, useAuditLog } from "@/hooks/useAiOps";
+import type { RemediationPolicy } from "@/types/aiops";
 
 type Tier = "critical" | "high" | "medium" | "low";
 type Status = "open" | "acknowledged" | "resolved";
