@@ -124,6 +124,16 @@ const App = () => (
                   <Route path="/applications/alerts" element={<RoleGuard allow={["super_admin", "admin", "operator"]}><ApplicationsAlerts /></RoleGuard>} />
                   <Route path="/applications/:id" element={<ApplicationDetail />} />
                   <Route
+                    path="/aiops/policies"
+                    element={
+                      <RoleGuard allow={["super_admin", "admin", "auditor"]}>
+                        <AIPolicies />
+                      </RoleGuard>
+                    }
+                  />
+                  <Route path="/aiops/knowledge" element={<AIKnowledgeBase />} />
+                  <Route path="/aiops/history" element={<AIAutomationHistory />} />
+                  <Route
                     path="/governance/users"
                     element={
                       <RoleGuard allow={["admin"]}>
