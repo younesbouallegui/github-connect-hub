@@ -51,6 +51,9 @@ import ApplicationsRegistry from "./pages/applications/Registry";
 import ApplicationsTopology from "./pages/applications/Topology";
 import ApplicationsAlerts from "./pages/applications/Alerts";
 import ApplicationDetail from "./pages/applications/Detail";
+import AIPolicies from "./pages/aiops/Policies";
+import AIKnowledgeBase from "./pages/aiops/KnowledgeBase";
+import AIAutomationHistory from "./pages/aiops/AutomationHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
