@@ -1,5 +1,6 @@
 // Lovable AI Operations Copilot — streaming incident analysis.
 // Provider-abstracted: defaults to Lovable AI Gateway (google/gemini-3-flash-preview).
+// Deployed via Lovable Cloud edge runtime.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
