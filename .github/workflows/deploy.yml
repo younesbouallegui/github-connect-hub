@@ -32,15 +32,34 @@ jobs:
       - name: Deploy edge functions
         # Requires repo secret SUPABASE_ACCESS_TOKEN (Supabase dashboard → Account → Access Tokens).
         # Step is skipped (not failed) when the secret is absent, so frontend deploy still ships.
-        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' }}
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           supabase functions deploy zabbix-connector --project-ref sthwjunbanntnnakdkyi --no-verify-jwt
           supabase functions deploy incident-ai --project-ref sthwjunbanntnnakdkyi --no-verify-jwt
 
+      - name: Verify deployed edge functions are reachable
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+        run: |
+          for fn in zabbix-connector incident-ai; do
+            for i in $(seq 1 30); do
+              status=$(curl -s -o /tmp/${fn}.json -w "%{http_code}" -X OPTIONS https://sthwjunbanntnnakdkyi.supabase.co/functions/v1/${fn})
+              if [ "$status" = "200" ] || [ "$status" = "204" ]; then
+                echo "${fn} reachable"
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "${fn} not reachable after deploy (HTTP ${status})"
+                cat /tmp/${fn}.json
+                exit 1
+              fi
+              sleep 2
+            done
+          done
+
       - name: Warn if Supabase deploy was skipped
-        if: ${{ env.SUPABASE_ACCESS_TOKEN == '' }}
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN == '' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
