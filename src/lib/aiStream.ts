@@ -1,9 +1,7 @@
-// SSE streaming helper for the incident-ai edge function.
+// SSE streaming helper for the deployed backend connector.
 // Robust line-by-line parser, handles CRLF, comments, partial JSON, and [DONE].
 
-import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/integrations/supabase/client";
-
-const ENDPOINT = `${SUPABASE_URL}/functions/v1/incident-ai`;
+import { supabase } from "@/integrations/supabase/client";
 
 export interface AiStreamInput {
   mode: "explain" | "chat" | "remediate";
@@ -18,15 +16,24 @@ export interface AiStreamInput {
 
 export async function streamIncidentAi(opts: AiStreamInput) {
   const { signal, onDelta, onDone, onError, ...payload } = opts;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+
+  if (!accessToken) {
+    onError?.({ status: 401, message: "Please sign in to use AI Insights." });
+    return;
+  }
+
   let response: Response;
   try {
-    response = await fetch(ENDPOINT, {
+    response = await fetch(`${supabase.functions.url}/zabbix-connector`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        Authorization: `Bearer ${accessToken}`,
+        apikey: supabase.supabaseKey,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ action: "ai_chat", params: payload }),
       signal,
     });
   } catch (e) {
@@ -47,7 +54,10 @@ export async function streamIncidentAi(opts: AiStreamInput) {
       /* noop */
     }
     if (response.status === 404) {
-      msg = "AI streaming service is not deployed yet. The client is fixed now, but the backend function must finish deploying.";
+      msg = "AI streaming service route is unavailable.";
+    }
+    if (response.status === 401) {
+      msg = "Your session has expired. Please sign in again.";
     }
     onError?.({ status: response.status, message: msg });
     return;
