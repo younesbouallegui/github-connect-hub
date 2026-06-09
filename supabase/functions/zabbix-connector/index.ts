@@ -451,6 +451,8 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+    const url = Deno.env.get("ZABBIX_URL");
+    const token = Deno.env.get("ZABBIX_API_TOKEN");
 
     switch (action) {
       case "query":
@@ -458,8 +460,6 @@ Deno.serve(async (req) => {
       case "test":
       case "sync":
       case "call": {
-        const url = Deno.env.get("ZABBIX_URL");
-        const token = Deno.env.get("ZABBIX_API_TOKEN");
         if (!url || !token) {
           return json(
             { error: "Zabbix credentials not configured. Add ZABBIX_URL and ZABBIX_API_TOKEN secrets." },
