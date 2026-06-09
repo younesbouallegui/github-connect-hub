@@ -4,6 +4,7 @@
 //   test        -> validate connection, return version + latency (admin only)
 //   sync        -> pull host_groups, hosts, problems → upsert into monitoring_* tables (admin only)
 //   query       -> whitelisted read-only Zabbix JSON-RPC proxy (authenticated users)
+//   ai_chat     -> streaming enterprise operations chat via Lovable AI (authenticated users)
 //   call        -> generic Zabbix JSON-RPC pass-through (admin only)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -267,6 +268,160 @@ async function handleWrite(
     logEvent("zabbix.write.failure", { userId: caller.userId, method, code: kind.code, detail });
     return json({ ok: false, code: kind.code, error: humanError(kind.code), detail }, kind.status);
   }
+}
+
+interface AiIncidentCtx {
+  eventId?: string;
+  trigger?: string;
+  host?: string;
+  hostGroup?: string;
+  severity?: string;
+  opdata?: string;
+  triggeredAt?: string;
+  relatedIncidents?: Array<{
+    id: string;
+    name: string;
+    resolution?: string;
+    similarity?: number;
+  }>;
+  metrics?: Record<string, string | number>;
+  services?: string[];
+}
+
+interface AiChatInput {
+  mode?: "explain" | "chat" | "remediate";
+  incident?: AiIncidentCtx;
+  messages?: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+  model?: string;
+}
+
+function buildAiSystem(mode: NonNullable<AiChatInput["mode"]>) {
+  const base =
+    "You are AIOps Copilot — a senior SRE assistant embedded in an enterprise operations platform. " +
+    "Be precise, structured, and concise. Use markdown with clear ## section headers. " +
+    "Never invent host names, IDs, or metrics. If data is missing, say so.";
+
+  if (mode === "explain") {
+    return (
+      base +
+      "\n\nProduce EXACTLY these sections in order:\n" +
+      "## Incident Summary\n## Root Cause Analysis\n## Investigation Guide\n## Remediation Guide\n## Prevention Plan"
+    );
+  }
+
+  if (mode === "remediate") {
+    return (
+      base +
+      "\n\nProduce a safe REMEDIATION PLAN as ordered steps. " +
+      "For each step include: action, target host, risk level, reversible (yes/no), and approval requirement when risk >= medium. " +
+      "End with a one-line confidence estimate."
+    );
+  }
+
+  return base + "\n\nAnswer the user's operations question grounded in the provided incident context.";
+}
+
+function buildAiContext(incident?: AiIncidentCtx) {
+  if (!incident) return "";
+
+  const lines = [
+    "## Incident Context",
+    `- Event ID: ${incident.eventId ?? "n/a"}`,
+    `- Trigger: ${incident.trigger ?? "n/a"}`,
+    `- Host: ${incident.host ?? "n/a"}`,
+    `- Host group: ${incident.hostGroup ?? "n/a"}`,
+    `- Severity: ${incident.severity ?? "n/a"}`,
+    `- Operational data: ${incident.opdata ?? "n/a"}`,
+    `- Triggered at: ${incident.triggeredAt ?? "n/a"}`,
+  ];
+
+  if (incident.services?.length) lines.push(`- Services impacted: ${incident.services.join(", ")}`);
+  if (incident.metrics) lines.push(`- Recent metrics: ${JSON.stringify(incident.metrics)}`);
+
+  if (incident.relatedIncidents?.length) {
+    lines.push("- Related historical incidents:");
+    for (const related of incident.relatedIncidents) {
+      lines.push(
+        `  • #${related.id} ${related.name}${related.similarity ? ` (${related.similarity}% similar)` : ""}${related.resolution ? ` → ${related.resolution}` : ""}`,
+      );
+    }
+  }
+
+  return lines.join("\n");
+}
+
+async function handleAiChat(input: AiChatInput, caller: CallerContext) {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) {
+    return json({ error: "LOVABLE_API_KEY not configured" }, 500);
+  }
+
+  const mode: NonNullable<AiChatInput["mode"]> = input.mode ?? "chat";
+  const model = typeof input.model === "string" && input.model.trim()
+    ? input.model.trim()
+    : "google/gemini-3-flash-preview";
+
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: buildAiSystem(mode) },
+  ];
+
+  if (mode === "chat") {
+    if (input.incident) {
+      messages.push({ role: "system", content: buildAiContext(input.incident) });
+    }
+    for (const message of input.messages ?? []) {
+      if (!message?.content || !["system", "user", "assistant"].includes(message.role)) continue;
+      messages.push({ role: message.role, content: message.content });
+    }
+  } else {
+    const ask = mode === "explain"
+      ? "Analyze this incident and produce the full structured report."
+      : "Produce a safe remediation plan for this incident.";
+
+    messages.push({
+      role: "user",
+      content: `${ask}\n\n${buildAiContext(input.incident)}`,
+    });
+  }
+
+  logEvent("ai.chat.start", { userId: caller.userId, mode, model });
+
+  const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Lovable-API-Key": apiKey,
+      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+    },
+    body: JSON.stringify({ model, messages, stream: true }),
+  });
+
+  if (!upstream.ok || !upstream.body) {
+    const detail = await upstream.text().catch(() => "");
+    logEvent("ai.chat.failure", { userId: caller.userId, mode, model, status: upstream.status, detail });
+
+    if (upstream.status === 429) {
+      return json({ error: "Rate limit reached. Try again shortly." }, 429);
+    }
+    if (upstream.status === 402) {
+      return json({ error: "AI credits exhausted. Add credits in workspace settings." }, 402);
+    }
+
+    return json({ error: "AI gateway error", details: detail || `HTTP ${upstream.status}` }, 502);
+  }
+
+  logEvent("ai.chat.stream", { userId: caller.userId, mode, model });
+
+  return new Response(upstream.body, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
 
 Deno.serve(async (req) => {
