@@ -191,8 +191,8 @@ export function useZabbixHosts() {
           },
         });
       } catch (e) {
-        if (String(e instanceof Error ? e.message : e).includes("Unknown action: query")) return syncedHosts();
-        throw e;
+        console.warn("[zabbix] hosts live query failed, using synced data:", e);
+        return syncedHosts();
       }
     },
     refetchInterval: 60_000,
