@@ -68,6 +68,46 @@ export const ChatInterface = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoSentRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const pendingRef = useRef<Map<string, string>>(new Map());
+  const rafRef = useRef<number | null>(null);
+
+  const scheduleDrain = () => {
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const updates: Array<[string, string]> = [];
+      pendingRef.current.forEach((buf, id) => {
+        if (!buf) return;
+        const take = Math.max(1, Math.ceil(buf.length / 8));
+        const chunk = buf.slice(0, take);
+        pendingRef.current.set(id, buf.slice(take));
+        updates.push([id, chunk]);
+      });
+      if (updates.length) {
+        setMessages((prev) =>
+          prev.map((m) => {
+            const u = updates.find(([id]) => id === m.id);
+            return u ? { ...m, content: m.content + u[1] } : m;
+          }),
+        );
+      }
+      // Keep draining while data remains.
+      let hasMore = false;
+      pendingRef.current.forEach((buf) => { if (buf) hasMore = true; });
+      if (hasMore) scheduleDrain();
+    });
+  };
+
+  const flushPending = (id: string) => {
+    const remaining = pendingRef.current.get(id) ?? "";
+    pendingRef.current.delete(id);
+    if (remaining) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, content: m.content + remaining } : m)),
+      );
+    }
+  };
+
 
   // RAG: similar past incidents
   const similar = useMemo(() => {
