@@ -1,17 +1,12 @@
-// SSE streaming helper for the deployed backend connector.
-// Robust line-by-line parser, handles CRLF, comments, partial JSON, and [DONE].
+// SSE streaming helper for the ask-stream edge function.
+// Streams tokens from Lovable AI Gateway via the Supabase edge proxy.
 
-import {
-  SUPABASE_PUBLISHABLE_KEY,
-  SUPABASE_URL,
-  supabase,
-} from "@/integrations/supabase/client";
+import { SUPABASE_URL } from "@/integrations/supabase/client";
 
 export interface AiStreamInput {
   mode: "explain" | "chat" | "remediate";
   incident?: Record<string, unknown>;
   messages?: Array<{ role: "user" | "assistant" | "system"; content: string }>;
-  model?: string;
   signal?: AbortSignal;
   onDelta: (chunk: string) => void;
   onDone: () => void;
@@ -19,31 +14,36 @@ export interface AiStreamInput {
 }
 
 export async function streamIncidentAi(opts: AiStreamInput) {
-  const { signal, onDelta, onDone, onError, ...payload } = opts;
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
+  const { signal, onDelta, onDone, onError, mode, incident, messages } = opts;
 
-  if (!accessToken) {
-    onError?.({ status: 401, message: "Please sign in to use AI Insights." });
-    return;
+  // Derive the question (last user message) and the rest of the history.
+  const history = (messages ?? []).filter((m) => m.role !== "system");
+  let question = "";
+  let trimmedHistory = history;
+
+  if (history.length > 0 && history[history.length - 1].role === "user") {
+    question = history[history.length - 1].content;
+    trimmedHistory = history.slice(0, -1);
+  } else if (mode === "explain" && incident) {
+    question = `Please analyze this incident and explain the root cause, blast radius, and recommended remediation steps.`;
+  } else if (mode === "remediate" && incident) {
+    question = `Generate a step-by-step remediation plan for this incident.`;
+  } else {
+    question = "Investigate the current situation.";
   }
+
+  const context = { mode, ...(incident ?? {}) };
 
   let response: Response;
   try {
-    response = await fetch(`${SUPABASE_URL}/functions/v1/zabbix-connector`, {
+    response = await fetch(`${SUPABASE_URL}/functions/v1/ask-stream`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-      },
-      body: JSON.stringify({ action: "ai_chat", params: payload }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, history: trimmedHistory, context }),
       signal,
     });
   } catch (e) {
-    if (e instanceof DOMException && e.name === "AbortError") {
-      return;
-    }
+    if (e instanceof DOMException && e.name === "AbortError") return;
     onError?.({ status: 0, message: e instanceof Error ? e.message : "Network error" });
     return;
   }
@@ -53,16 +53,7 @@ export async function streamIncidentAi(opts: AiStreamInput) {
     try {
       const j = await response.json();
       if (j?.error) msg = j.error;
-      else if (j?.message) msg = j.message;
-    } catch {
-      /* noop */
-    }
-    if (response.status === 404) {
-      msg = "AI streaming service route is unavailable.";
-    }
-    if (response.status === 401) {
-      msg = "Your session has expired. Please sign in again.";
-    }
+    } catch { /* noop */ }
     onError?.({ status: response.status, message: msg });
     return;
   }
@@ -70,54 +61,43 @@ export async function streamIncidentAi(opts: AiStreamInput) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let done = false;
 
-  while (!done) {
-    const { value, done: streamDone } = await reader.read();
-    if (streamDone) break;
-    buffer += decoder.decode(value, { stream: true });
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-    let idx: number;
-    while ((idx = buffer.indexOf("\n")) !== -1) {
-      let line = buffer.slice(0, idx);
-      buffer = buffer.slice(idx + 1);
-      if (line.endsWith("\r")) line = line.slice(0, -1);
-      if (!line || line.startsWith(":")) continue;
-      if (!line.startsWith("data: ")) continue;
-      const json = line.slice(6).trim();
-      if (json === "[DONE]") {
-        done = true;
-        break;
-      }
-      try {
-        const parsed = JSON.parse(json);
-        const delta = parsed?.choices?.[0]?.delta?.content as string | undefined;
-        if (delta) onDelta(delta);
-      } catch {
-        // partial chunk — put back
-        buffer = line + "\n" + buffer;
-        break;
-      }
-    }
-  }
+      // Split on SSE event boundary (blank line).
+      let sepIdx: number;
+      while ((sepIdx = buffer.indexOf("\n\n")) !== -1) {
+        const rawEvent = buffer.slice(0, sepIdx);
+        buffer = buffer.slice(sepIdx + 2);
 
-  const trailing = buffer.trim();
-  if (trailing) {
-    for (const rawLine of trailing.split("\n")) {
-      let line = rawLine;
-      if (line.endsWith("\r")) line = line.slice(0, -1);
-      if (!line || line.startsWith(":")) continue;
-      if (!line.startsWith("data: ")) continue;
-      const json = line.slice(6).trim();
-      if (json === "[DONE]") continue;
-      try {
-        const parsed = JSON.parse(json);
-        const delta = parsed?.choices?.[0]?.delta?.content as string | undefined;
-        if (delta) onDelta(delta);
-      } catch {
-        /* ignore incomplete trailing frame */
+        for (const rawLine of rawEvent.split("\n")) {
+          const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+          if (!line || line.startsWith(":")) continue;
+          if (!line.startsWith("data:")) continue;
+          const json = line.slice(5).trim();
+          if (!json) continue;
+          if (json === "[DONE]") {
+            onDone();
+            return;
+          }
+          try {
+            const parsed = JSON.parse(json);
+            const delta = parsed?.choices?.[0]?.delta?.content as string | undefined;
+            if (delta) onDelta(delta);
+          } catch {
+            // ignore non-JSON
+          }
+        }
       }
     }
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") return;
+    onError?.({ status: 0, message: e instanceof Error ? e.message : "Stream error" });
+    return;
   }
 
   onDone();
