@@ -68,6 +68,46 @@ export const ChatInterface = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoSentRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const pendingRef = useRef<Map<string, string>>(new Map());
+  const rafRef = useRef<number | null>(null);
+
+  const scheduleDrain = () => {
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const updates: Array<[string, string]> = [];
+      pendingRef.current.forEach((buf, id) => {
+        if (!buf) return;
+        const take = Math.max(1, Math.ceil(buf.length / 8));
+        const chunk = buf.slice(0, take);
+        pendingRef.current.set(id, buf.slice(take));
+        updates.push([id, chunk]);
+      });
+      if (updates.length) {
+        setMessages((prev) =>
+          prev.map((m) => {
+            const u = updates.find(([id]) => id === m.id);
+            return u ? { ...m, content: m.content + u[1] } : m;
+          }),
+        );
+      }
+      // Keep draining while data remains.
+      let hasMore = false;
+      pendingRef.current.forEach((buf) => { if (buf) hasMore = true; });
+      if (hasMore) scheduleDrain();
+    });
+  };
+
+  const flushPending = (id: string) => {
+    const remaining = pendingRef.current.get(id) ?? "";
+    pendingRef.current.delete(id);
+    if (remaining) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, content: m.content + remaining } : m)),
+      );
+    }
+  };
+
 
   // RAG: similar past incidents
   const similar = useMemo(() => {
@@ -83,7 +123,8 @@ export const ChatInterface = ({
   }, [incidentContext, kb]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
@@ -161,13 +202,12 @@ export const ChatInterface = ({
       messages: isFirstWithIncident ? undefined : history,
       signal: controller.signal,
       onDelta: (delta) => {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId ? { ...m, content: m.content + delta } : m,
-          ),
-        );
+        const prev = pendingRef.current.get(assistantId) ?? "";
+        pendingRef.current.set(assistantId, prev + delta);
+        scheduleDrain();
       },
       onDone: () => {
+        flushPending(assistantId);
         setMessages((prev) =>
           prev.map((m) => (m.id === assistantId ? { ...m, streaming: false } : m)),
         );
@@ -183,6 +223,7 @@ export const ChatInterface = ({
         }
       },
       onError: (err) => {
+        flushPending(assistantId);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -201,6 +242,7 @@ export const ChatInterface = ({
       },
     });
   };
+
 
   // Auto-send on deep-link
   useEffect(() => {
@@ -390,23 +432,27 @@ const AiMessage = ({ msg }: { msg: ChatMessage }) => (
     <div className="min-w-0 flex-1">
       <div className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
         {msg.content ? (
-          <article
-            className={cn(
-              "prose prose-sm max-w-none text-sm leading-relaxed text-foreground",
-              "prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-2 prose-headings:first:mt-0",
-              "prose-h2:text-[13px] prose-h2:uppercase prose-h2:tracking-[0.14em] prose-h2:text-primary",
-              "prose-h3:text-sm",
-              "prose-p:my-1.5 prose-li:my-0.5 prose-strong:text-foreground",
-              "prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none",
-              "prose-pre:bg-muted prose-pre:text-foreground",
-              "prose-a:text-primary",
-            )}
-          >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-            {msg.streaming && (
+          msg.streaming ? (
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+              {msg.content}
               <span className="ml-0.5 inline-block h-3 w-1.5 animate-pulse-soft bg-primary align-middle" />
-            )}
-          </article>
+            </div>
+          ) : (
+            <article
+              className={cn(
+                "prose prose-sm max-w-none text-sm leading-relaxed text-foreground",
+                "prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-2 prose-headings:first:mt-0",
+                "prose-h2:text-[13px] prose-h2:uppercase prose-h2:tracking-[0.14em] prose-h2:text-primary",
+                "prose-h3:text-sm",
+                "prose-p:my-1.5 prose-li:my-0.5 prose-strong:text-foreground",
+                "prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none",
+                "prose-pre:bg-muted prose-pre:text-foreground",
+                "prose-a:text-primary",
+              )}
+            >
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+            </article>
+          )
         ) : (
           <div className="inline-flex items-center gap-2">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
