@@ -227,6 +227,7 @@ export type Database = {
         Row: {
           config: Json
           created_at: string
+          health_score: number | null
           id: string
           kind: string
           last_error: string | null
@@ -234,11 +235,13 @@ export type Database = {
           name: string
           secret_ref: string | null
           status: string
+          sync_interval_minutes: number | null
           updated_at: string
         }
         Insert: {
           config?: Json
           created_at?: string
+          health_score?: number | null
           id?: string
           kind: string
           last_error?: string | null
@@ -246,11 +249,13 @@ export type Database = {
           name: string
           secret_ref?: string | null
           status?: string
+          sync_interval_minutes?: number | null
           updated_at?: string
         }
         Update: {
           config?: Json
           created_at?: string
+          health_score?: number | null
           id?: string
           kind?: string
           last_error?: string | null
@@ -258,6 +263,7 @@ export type Database = {
           name?: string
           secret_ref?: string | null
           status?: string
+          sync_interval_minutes?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -265,34 +271,46 @@ export type Database = {
       monitoring_sync_logs: {
         Row: {
           alerts_synced: number | null
+          duration_ms: number | null
           error: string | null
           finished_at: string | null
           hosts_synced: number | null
           id: string
+          message: string | null
           metadata: Json | null
           provider_id: string | null
+          records_ingested: number | null
+          result: string | null
           started_at: string
           status: string
         }
         Insert: {
           alerts_synced?: number | null
+          duration_ms?: number | null
           error?: string | null
           finished_at?: string | null
           hosts_synced?: number | null
           id?: string
+          message?: string | null
           metadata?: Json | null
           provider_id?: string | null
+          records_ingested?: number | null
+          result?: string | null
           started_at?: string
           status?: string
         }
         Update: {
           alerts_synced?: number | null
+          duration_ms?: number | null
           error?: string | null
           finished_at?: string | null
           hosts_synced?: number | null
           id?: string
+          message?: string | null
           metadata?: Json | null
           provider_id?: string | null
+          records_ingested?: number | null
+          result?: string | null
           started_at?: string
           status?: string
         }
