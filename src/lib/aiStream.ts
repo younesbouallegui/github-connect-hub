@@ -1,7 +1,7 @@
 // SSE streaming helper for the ask-stream edge function.
 // Streams tokens from Lovable AI Gateway via the Supabase edge proxy.
 
-import { SUPABASE_URL } from "@/integrations/supabase/client";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
 export interface AiStreamInput {
   mode: "explain" | "chat" | "remediate";
